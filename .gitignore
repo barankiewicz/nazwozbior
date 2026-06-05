@@ -2,3 +2,8 @@ raw_pesel/
 __pycache__/
 *.pyc
 .DS_Store
+MEMORY.md
+AGENTS.md
+CLAUDE.md
+INSTRUCTIONS.md
+.opencode/
