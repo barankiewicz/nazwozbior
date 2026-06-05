@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nazwozbiór - znajdź imię, które jest Twoje</title>
+<meta name="description" content="Przeglądaj prawdziwe polskie imiona z rejestru PESEL. Filtruj po rodzaju, długości i pochodzeniu. Bez kont, bez śledzenia.">
+<meta property="og:title" content="Nazwozbiór - znajdź imię, które jest Twoje">
+<meta property="og:description" content="Prawdziwe polskie imiona z rejestru PESEL - filtruj, sortuj, poznawaj pochodzenie i opisy z Wikipedii.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pl_PL">
+<meta name="twitter:card" content="summary">
+<meta name="referrer" content="no-referrer-when-downgrade">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data:; script-src 'self' 'unsafe-inline'; frame-src 'none'; base-uri 'self'; form-action 'none'">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" crossorigin>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Nazwozbiór",
+  "description": "Przeglądaj prawdziwe polskie imiona z rejestru PESEL. Filtruj po rodzaju, długości i pochodzeniu.",
+  "inLanguage": "pl",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {"@type": "EntryPoint", "urlTemplate": "?q={search_term}"},
+    "query-input": "required name=search_term"
+  }
+}
+</script>
+<style>
+  :root{
+    --magenta:#c71585; --magenta-deep:#8b0f7a; --teal:#15c79c;
+    --bg:#fdf6fb; --surface:#ffffff; --surface-2:#fbf3f9;
+    --ink:#241b24; --muted:#6f6470; --faint:#6a5c6b;
+    --line:#f0e2ec; --line-strong:#e3cfdd;
+    --row-hover:#fdf0f8; --link:#a3107a; --accent:var(--magenta);
+    --radius:16px; --maxw:1040px;
+    --font:"Atkinson Hyperlegible",ui-sans-serif,-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+    --display:"Baloo 2","Atkinson Hyperlegible",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#17121a; --surface:#1f1823; --surface-2:#1a141f;
+    --ink:#f0e8f0; --muted:#a99fab; --faint:#afa5b2;
+    --line:#2c2333; --line-strong:#3a2f44;
+    --row-hover:#251c2d; --link:#f3a8d4; --accent:#e64aa6;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#17121a; --surface:#1f1823; --surface-2:#1a141f;
+    --ink:#f0e8f0; --muted:#a99fab; --faint:#afa5b2;
+    --line:#2c2333; --line-strong:#3a2f44;
+    --row-hover:#251c2d; --link:#f3a8d4; --accent:#e64aa6;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--font);color:var(--ink);background:var(--bg);line-height:1.6;
+    -webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+  a{color:var(--link)} a:hover{text-decoration:underline;text-underline-offset:2px}
+  .brandbar{height:5px;background:linear-gradient(90deg,var(--magenta),var(--magenta-deep) 45%,#5b3bb0 70%,var(--teal))}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+  .top{display:flex;align-items:center;justify-content:space-between;padding:24px 0 0}
+  .brand{display:flex;align-items:center;gap:11px}
+  .flag{width:30px;height:20px;border-radius:5px;overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:0 0 0 1px var(--line-strong) inset}
+  .flag i{flex:1}
+  .flag i:nth-child(1){background:#5bcefa} .flag i:nth-child(2){background:#f5a9b8}
+  .flag i:nth-child(3){background:#fff} .flag i:nth-child(4){background:#f5a9b8} .flag i:nth-child(5){background:#5bcefa}
+  .brand b{font-family:var(--display);font-weight:700;font-size:19px;color:var(--magenta);letter-spacing:.01em}
+  :root[data-theme="dark"] .brand b,:root:not([data-theme="light"]) .brand b{color:var(--accent)}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand b{color:var(--accent)}}
+  .toggle{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--line-strong);
+    background:var(--surface);color:var(--muted);font:inherit;font-size:13.5px;
+    padding:7px 14px;border-radius:999px;cursor:pointer;transition:.16s}
+  .toggle:hover{color:var(--ink);border-color:var(--accent)}
+  .toggle svg{width:15px;height:15px}
+
+  header.hero{padding:54px 0 14px;max-width:720px}
+  .kicker{font-size:14.5px;color:var(--muted);margin:0 0 14px}
+  h1{font-family:var(--display);font-size:clamp(34px,5.4vw,58px);line-height:1.05;font-weight:800;
+    letter-spacing:-.01em;margin:0;color:var(--ink)}
+  h1 .mark{color:var(--magenta);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='14' viewBox='0 0 80 14'%3E%3Cpath d='M0 7 Q20 0 40 7 T80 7' fill='none' stroke='%2315c79c' stroke-width='4'/%3E%3C/svg%3E");
+    background-repeat:repeat-x;background-position:0 100%;background-size:80px 12px;padding-bottom:8px;
+    animation:wave 2.6s linear infinite}
+  @keyframes wave{from{background-position:0 100%}to{background-position:-80px 100%}}
+  @media (prefers-reduced-motion:reduce){h1 .mark{animation:none}}
+  :root[data-theme="dark"] h1 .mark,:root:not([data-theme="light"]) h1 .mark{color:#ff7ac4}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) h1 .mark{color:#ff7ac4}}
+  .lede{font-size:clamp(16px,1.8vw,18.5px);color:var(--muted);margin:32px 0 0;max-width:620px}
+
+  .controls{display:flex;flex-wrap:wrap;gap:20px 30px;align-items:flex-end;margin:42px 0 0}
+  .ctl{display:flex;flex-direction:column;gap:8px}
+  .ctl > label{font-size:13px;color:var(--faint)}
+  .seg{display:inline-flex;background:var(--surface);border:2px solid var(--line-strong);border-radius:999px;padding:3px}
+  .seg button{border:0;background:transparent;font:inherit;font-size:14px;color:var(--muted);
+    padding:7px 16px;border-radius:999px;cursor:pointer;transition:.16s}
+  .seg button:hover{color:var(--ink)}
+  .seg button[aria-pressed="true"]{background:var(--magenta);color:#fff;font-weight:700}
+  :root[data-theme="dark"] .seg button[aria-pressed="true"],:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{background:var(--accent)}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{background:var(--accent)}}
+
+  select,input[type="text"]{font:inherit;font-size:15px;color:var(--ink);background:var(--surface);
+    border:2px solid var(--line-strong);border-radius:12px;padding:9px 13px;min-width:180px;outline:none;transition:.16s}
+  select:hover,input[type="text"]:hover{border-color:var(--muted)}
+  select:focus,input[type="text"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.len{min-width:230px}
+.len .row{display:flex;align-items:center;gap:12px;border:2px solid var(--line-strong);border-radius:10px;background:var(--surface);padding:7px 15px;min-height:40px;transition:border-color .16s}
+.len .row:hover{border-color:var(--muted)}
+.len .row:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.len input[type="range"]{flex:1;accent-color:var(--accent);height:6px;cursor:pointer}
+  .len .val{font-size:13.5px;color:var(--muted);white-space:nowrap}
+
+  .meta{display:flex;justify-content:space-between;align-items:baseline;margin:30px 2px 12px;gap:16px;flex-wrap:wrap}
+  .count{font-size:15px;color:var(--muted)} .count b{color:var(--ink);font-weight:700}
+  .hint{font-size:13px;color:var(--faint)}
+
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:12.5px;color:var(--faint);font-weight:700;text-align:left;
+    padding:10px 14px;border-bottom:2px solid var(--line-strong);white-space:nowrap;cursor:pointer;user-select:none}
+  thead th.num{text-align:right}
+  thead th .arr{opacity:.3;font-size:10px;margin-left:3px}
+  thead th[data-active="1"]{color:var(--magenta)} thead th[data-active="1"] .arr{opacity:1}
+  :root[data-theme="dark"] thead th[data-active="1"],:root:not([data-theme="light"]) thead th[data-active="1"]{color:var(--accent)}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) thead th[data-active="1"]{color:var(--accent)}}
+  tbody tr.main{border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s}
+  tbody tr.main:hover{background:var(--row-hover)}
+  tbody td{padding:13px 14px;font-size:15px;vertical-align:middle}
+  td.name{font-family:var(--display);font-weight:600;font-size:17px}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+  .tag{display:inline-block;font-size:12.5px;font-weight:700;padding:3px 12px;border-radius:999px}
+  tr.detail td{padding:0 14px;background:var(--surface-2)}
+  .detail-inner{max-height:0;overflow:hidden;transition:max-height .28s ease}
+  tr.detail.open .detail-inner{max-height:660px}
+  .detail-pad{padding:6px 0 22px;max-width:760px}
+  .detail-pad .freq{font-size:13.5px;color:var(--muted);margin:0 0 11px} .detail-pad .freq b{color:var(--ink)}
+  .detail-pad .opis{font-size:15.5px;line-height:1.74;color:var(--ink)}
+  .detail-pad .src{font-size:12.5px;color:var(--faint);margin-top:12px}
+  .empty{padding:56px 20px;text-align:center;color:var(--muted)}
+  .empty code{background:var(--surface-2);padding:2px 7px;border-radius:6px;font-size:13px;color:var(--ink)}
+
+  /* kolorowe kodowanie pochodzenia (light) */
+  .o0{background:#fbe0f0;color:#a3107a} .o1{background:#ece1fb;color:#6b3bb0}
+  .o2{background:#d6f5ec;color:#0d7a60} .o3{background:#dcebfb;color:#1d62a8}
+  .o4{background:#fce6d6;color:#a85a18} .o5{background:#e6f4d6;color:#3f7a13}
+  .o-none{background:var(--surface-2);color:var(--faint);box-shadow:0 0 0 1px var(--line) inset}
+  .darko .o0{background:#3a1430;color:#f3a8d4} .darko .o1{background:#2c2348;color:#c3a6f0}
+  .darko .o2{background:#0f3329;color:#76e3c6} .darko .o3{background:#16263f;color:#8fc3f3}
+  .darko .o4{background:#3a2613;color:#f0b483} .darko .o5{background:#1f3312;color:#b3df86}
+
+  tbody tr.main{animation:fade .3s ease both}
+  @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){tbody tr.main{animation:none}
+    body{transition:none} .chev{transition:none} .brand b,.mark,.seg button,.toggle{transition:none}}
+
+  .skip-link{position:fixed;top:-100%;left:12px;z-index:999;padding:10px 20px;background:var(--accent);color:#fff;
+    font:inherit;font-weight:700;font-size:14px;border-radius:0 0 12px 12px;text-decoration:none;outline:none}
+  .skip-link:focus{top:0}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+  .seg button:focus-visible,select:focus-visible,input:focus-visible,.toggle:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .chev{transition:transform .18s}
+  tr.main[aria-expanded="true"] .chev{transform:rotate(90deg);color:var(--magenta)}
+
+  .btn-ghost{border:2px solid var(--line-strong);background:var(--surface);color:var(--muted);font:inherit;font-size:13.5px;
+    padding:7px 16px;border-radius:999px;cursor:pointer;transition:.16s}
+  .btn-ghost:hover{color:var(--ink);border-color:var(--accent)}
+  .btn-ghost:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  #page-wrap{text-align:center;padding:24px 0;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+  .meta-actions{display:flex;align-items:center;gap:8px}
+
+  footer{margin:38px 0 58px;padding-top:24px;border-top:2px solid var(--line);
+    color:var(--faint);font-size:13px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  footer a{color:var(--muted)}
+  @media(max-width:620px){thead th.hide,tbody td.hide{display:none} header.hero{padding-top:38px}}
+  #particles-canvas{position:fixed;inset:0;z-index:-1;pointer-events:none;width:100vw;height:100vh}
+  #back-top{position:fixed;bottom:28px;right:28px;z-index:100;display:none;box-shadow:0 2px 12px rgba(0,0,0,.15);padding:10px 18px;font-size:14px}
+  @media(max-width:620px){#back-top{bottom:16px;right:16px}}
+</style>
+</head>
+<body>
+  <a href="#main" class="skip-link">Przejdź do treści</a>
+  <noscript><div style="background:#ffd6d6;color:#5c1a1a;padding:20px;text-align:center;font-family:sans-serif">Nazwozbiór wymaga JavaScript do wyświetlenia danych - włącz JS w przeglądarce.</div></noscript>
+  <canvas id="particles-canvas" aria-hidden="true"></canvas>
+  <div class="brandbar" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <span class="flag" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <b>Nazwozbiór</b>
+      </div>
+      <button class="toggle" id="theme" aria-label="Przełącz tryb jasny i ciemny">
+        <span id="theme-icon"></span><span id="theme-label">ciemny</span>
+      </button>
+    </div>
+
+    <header class="hero">
+      <h1>Znajdźmy imię,<br>które jest <span class="mark">Twoje</span>.</h1>
+      <p class="lede">Prawdziwe polskie imiona z rejestru PESEL przeglądaj po rodzaju, długości i pochodzeniu.
+        Bez kont, bez śledzenia, w swoim tempie.<br />
+        Nie ma złych wyborów - jest tylko Twój.</p>
+    </header>
+
+    <section id="main" aria-label="Wyszukiwarka imion">
+      <div class="controls">
+        <div class="ctl">
+          <label>rodzaj</label>
+          <div class="seg" id="seg-gender" role="group" aria-label="rodzaj imion">
+            <button data-g="z" aria-pressed="true">żeńskie</button>
+            <button data-g="m" aria-pressed="false">męskie</button>
+            <button data-g="all" aria-pressed="false">wszystkie</button>
+          </div>
+        </div>
+        <div class="ctl len">
+          <label>długość · <span class="val" id="len-val">2–20 liter</span></label>
+          <div class="row">
+            <input type="range" id="len-min" min="1" max="20" value="2" step="1" aria-label="minimalna długość">
+            <input type="range" id="len-max" min="1" max="20" value="20" step="1" aria-label="maksymalna długość">
+          </div>
+        </div>
+        <div class="ctl">
+          <label for="origin">pochodzenie</label>
+          <select id="origin"><option value="all">dowolne</option></select>
+        </div>
+        <div class="ctl">
+          <label for="search">szukaj</label>
+          <input type="text" id="search" placeholder="np. Ala, Zof, mar…" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="meta">
+        <div class="meta-actions">
+          <span class="count" id="count" aria-live="polite" aria-atomic="true">-</span>
+          <button class="btn-ghost" id="random-btn" title="Wylosuj imię z obecnych filtrów"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><rect x="2" y="2" width="16" height="16" rx="3"/><circle cx="6" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="14" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="14" r="1.2" fill="currentColor" stroke="none"/></svg>losuj</button>
+          <button class="btn-ghost" id="csv-btn" title="Pobierz widoczne wyniki jako CSV"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M4 2h8l4 4v12H4V2z"/><path d="M12 2v4h4"/><path d="M7 10h6M7 13h4"/></svg>CSV</button>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr id="head">
+            <th data-key="imie">imię <span class="arr">▲</span></th>
+            <th data-key="dlugosc" class="num hide">długość <span class="arr">▲</span></th>
+            <th data-key="pochodzenie">pochodzenie <span class="arr">▲</span></th>
+            <th data-key="wystapienia_pierwsze" class="num">jako 1. imię <span class="arr">▲</span></th>
+            <th data-key="wystapienia_drugie" class="num hide">jako 2. imię <span class="arr">▲</span></th>
+            <th data-key="wystapienia_razem" class="num hide">łącznie <span class="arr">▲</span></th>
+            <th aria-label="rozwiń"></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="page-wrap">
+        <button class="btn-ghost" id="prev-page" style="display:none">← poprzednia</button>
+        <span id="page-info" style="font-size:13px;color:var(--faint)"></span>
+        <button class="btn-ghost" id="next-page" style="display:none">następna →</button>
+        <button class="btn-ghost" id="view-all">pokaż wszystkie</button>
+      </div>
+    </section>
+
+    <button class="btn-ghost" id="back-top" aria-label="Wróć na górę">↑ do góry</button>
+
+    <footer>
+      <span>dane: rejestr PESEL (dane.gov.pl) · opisy: polska Wikipedia (CC BY-SA)</span>
+      <span>Nazwozbiór zrobiony z troską, ale bez ciasteczek</span>
+    </footer>
+  </div>
+
+<script>
+(function(){
+  var SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>';
+  var MOON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+  var root=document.documentElement, btn=document.getElementById("theme"),
+      ic=document.getElementById("theme-icon"), lb=document.getElementById("theme-label");
+  function isDark(){var t=root.getAttribute("data-theme");
+    if(t)return t==="dark";
+    return window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches;}
+  function paint(){var d=isDark();ic.innerHTML=d?SUN:MOON;lb.textContent=d?"jasny":"ciemny";
+    document.body.classList.toggle("darko",d);}
+  btn.addEventListener("click",function(){root.setAttribute("data-theme",isDark()?"light":"dark");paint();});
+  if(window.matchMedia){window.matchMedia("(prefers-color-scheme:dark)").addEventListener("change",function(){if(!root.getAttribute("data-theme"))paint();});}
+  paint();
+})();
+</script>
+<script src="dane.js"></script>
+<script>
+(function(){
+  "use strict";
+  var ORIGIN_LABELS={greckie:"greckie",lacinskie:"łacińskie",germanskie:"germańskie",
+    slowianskie:"słowiańskie",staropolskie:"staropolskie",hebrajskie:"hebrajskie",
+    aramejskie:"aramejskie",celtyckie:"celtyckie",arabskie:"arabskie",perskie:"perskie",
+    litewskie:"litewskie",egipskie:"egipskie",sanskryckie:"sanskryckie",indyjskie:"indyjskie",
+    tureckie:"tureckie",baskijskie:"baskijskie",anglosaskie:"anglosaskie",angielskie:"angielskie",
+    francuskie:"francuskie",hiszpanskie:"hiszpańskie",wloskie:"włoskie",romanskie:"romańskie",
+    rosyjskie:"rosyjskie",ruskie:"ruskie",ukrainskie:"ukraińskie",wegierskie:"węgierskie",
+    skandynawskie:"skandynawskie",finskie:"fińskie",etiopskie:"etiopskie",fenickie:"fenickie",
+    akadyjskie:"akadyjskie",sumeryjskie:"sumeryjskie"};
+  function originLabel(o){return o?(ORIGIN_LABELS[o]||o):"nieokreślone";}
+  function originClass(o){if(!o)return"o-none";var s=0;for(var i=0;i<o.length;i++)s+=o.charCodeAt(i);return"o"+(s%6);}
+  function nf(n){return (n||0).toLocaleString("pl-PL");}
+
+  var M=(window.DANE_MESKIE||[]).map(function(r){r._g="m";return r;});
+  var Z=(window.DANE_ZENSKIE||[]).map(function(r){r._g="z";return r;});
+  var hasData=(M.length+Z.length)>0;
+
+  var PER_PAGE=250,page=0,displayAll=false;
+  var state={g:"z",min:2,max:20,origin:"all",q:"",sort:"wystapienia_pierwsze",dir:-1};
+
+  var rowsEl=document.getElementById("rows"),countEl=document.getElementById("count"),
+      headEl=document.getElementById("head"),originSel=document.getElementById("origin"),
+      lenMin=document.getElementById("len-min"),lenMax=document.getElementById("len-max"),
+      lenVal=document.getElementById("len-val"),searchEl=document.getElementById("search"),
+      randBtn=document.getElementById("random-btn"),
+      prevBtn=document.getElementById("prev-page"),nextBtn=document.getElementById("next-page"),
+      pageInfo=document.getElementById("page-info"),viewAllBtn=document.getElementById("view-all");
+
+  function pool(){if(state.g==="m")return M;if(state.g==="z")return Z;return M.concat(Z);}
+  function val(r,key){
+    if(key==="dlugosc")return r.imie.length;
+    if(key==="imie")return r.imie.toLowerCase();
+    if(key==="pochodzenie")return originLabel(r.pochodzenie);
+    if(key==="wystapienia_razem")return (r.wystapienia_pierwsze||0)+(r.wystapienia_drugie||0);
+    return r[key]||0;
+  }
+  function filtered(){
+    var q=state.q.trim().toLowerCase();
+    return pool().filter(function(r){
+      var L=r.imie.length;
+      if(L<state.min||L>state.max)return false;
+      if(state.origin==="all"){}
+      else if(state.origin==="__none__"){if(r.pochodzenie)return false;}
+      else if(r.pochodzenie!==state.origin)return false;
+      if(q&&r.imie.toLowerCase().indexOf(q)<0)return false;
+      return true;
+    });
+  }
+  function sorted(arr){
+    var k=state.sort,d=state.dir;
+    return arr.slice().sort(function(a,b){
+      var x=val(a,k),y=val(b,k);
+      if(x<y)return -1*d; if(x>y)return 1*d;
+      return a.imie.localeCompare(b.imie,"pl");
+    });
+  }
+  function loadState(){
+    var p=new URLSearchParams(location.search);
+    if(p.has("gender")){var v=p.get("gender");if(v==="m"||v==="z"||v==="all")state.g=v;}
+    if(p.has("min")){var n=+p.get("min");if(n>=1&&n<=20)state.min=n;}
+    if(p.has("max")){var n=+p.get("max");if(n>=1&&n<=20)state.max=n;}
+    if(p.has("origin"))state.origin=p.get("origin");
+    if(p.has("q"))state.q=p.get("q");
+    if(p.has("sort"))state.sort=p.get("sort");
+    if(p.has("dir")){var d=+p.get("dir");if(d===1||d===-1)state.dir=d;}
+  }
+  function pushState(){
+    var p=new URLSearchParams();
+    if(state.g!=="z")p.set("gender",state.g);
+    if(state.min!==2)p.set("min",state.min);
+    if(state.max!==20)p.set("max",state.max);
+    if(state.origin!=="all")p.set("origin",state.origin);
+    if(state.q)p.set("q",state.q);
+    if(state.sort!=="wystapienia_pierwsze")p.set("sort",state.sort);
+    if(state.dir!==-1)p.set("dir",state.dir);
+    var qs=p.toString();
+    history.replaceState(state,"",qs?"?"+qs:location.pathname);
+  }
+  function buildOriginOptions(){
+    var set={};pool().forEach(function(r){set[r.pochodzenie||"__none__"]=1;});
+    var keys=Object.keys(set).filter(function(k){return k!=="__none__";})
+      .sort(function(a,b){return originLabel(a).localeCompare(originLabel(b),"pl");});
+    var html='<option value="all">dowolne</option>';
+    keys.forEach(function(k){html+='<option value="'+k+'">'+originLabel(k)+'</option>';});
+    if(set["__none__"])html+='<option value="__none__">nieokreślone</option>';
+    originSel.innerHTML=html;
+    var valid=["all","__none__"].concat(keys);
+    if(valid.indexOf(state.origin)<0)state.origin="all";
+    originSel.value=state.origin;
+  }
+  function plural(n){var a=n%10,b=n%100;if(n===1)return"imię";if(a>=2&&a<=4&&!(b>=12&&b<=14))return"imiona";return"imion";}
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+  function render(){
+    if(!hasData){
+      rowsEl.innerHTML='<tr><td colspan="7"><div class="empty">'+
+        'Tu pojawią się imiona. Najpierw uruchom <code>python3 zbuduj_dataset.py</code>,<br>'+
+        'żeby utworzyć plik <code>dane.js</code> obok tej strony.</div></td></tr>';
+      countEl.textContent="";prevBtn.style.display="none";nextBtn.style.display="none";
+      pageInfo.textContent="";viewAllBtn.style.display="none";return;
+    }
+    var all=sorted(filtered()),total=all.length;
+    var totalPages=Math.ceil(total/PER_PAGE);
+    if(page>=totalPages)page=Math.max(0,totalPages-1);
+    viewAllBtn.style.display="";
+    var shown,start;
+    if(displayAll){
+      shown=all;prevBtn.style.display="none";nextBtn.style.display="none";
+      pageInfo.textContent="";viewAllBtn.textContent="pokaż po stronie";
+      countEl.innerHTML="<b>"+nf(total)+"</b> "+plural(total);
+    }else{
+      start=page*PER_PAGE;shown=all.slice(start,start+PER_PAGE);
+      prevBtn.style.display=page>0?"inline-block":"none";
+      nextBtn.style.display=page<totalPages-1?"inline-block":"none";
+      pageInfo.textContent="strona "+(page+1)+" z "+totalPages;
+      viewAllBtn.textContent="pokaż wszystkie";
+      countEl.innerHTML="<b>"+nf(total)+"</b> "+plural(total)+" · <b>"+nf(start+1)+"</b>–<b>"+nf(Math.min(start+PER_PAGE,total))+"</b>";
+    }
+    var h="";
+    shown.forEach(function(r,i){
+      h+='<tr class="main" data-i="'+i+'" data-imie="'+esc(r.imie)+'" aria-expanded="false">'+
+           '<td class="name">'+esc(r.imie)+'</td>'+
+           '<td class="num hide">'+r.imie.length+'</td>'+
+           '<td><span class="tag '+originClass(r.pochodzenie)+'">'+originLabel(r.pochodzenie)+'</span></td>'+
+           '<td class="num">'+nf(r.wystapienia_pierwsze)+'</td>'+
+           '<td class="num hide">'+nf(r.wystapienia_drugie)+'</td>'+
+           '<td class="num hide">'+nf((r.wystapienia_pierwsze||0)+(r.wystapienia_drugie||0))+'</td>'+
+           '<td style="text-align:right"><span class="chev">›</span></td></tr>'+
+         '<tr class="detail" data-d="'+i+'"><td colspan="7"><div class="detail-inner" aria-hidden="true"><div class="detail-pad">'+
+           '<p class="freq">w PESEL: <b>'+nf(r.wystapienia_pierwsze)+'</b> os. jako imię pierwsze, '+
+             '<b>'+nf(r.wystapienia_drugie)+'</b> jako drugie'+
+             (r.pochodzenie?(' · pochodzenie <b>'+originLabel(r.pochodzenie)+'</b>'):'')+'</p>'+
+           '<div class="opis">'+(r.opis_html||'<span style="color:var(--faint)">Nie ma opisu z Wikipedii dla tego imienia - co nie znaczy, że jest gorsze.</span>')+'</div>'+
+           (r.opis_html?'<p class="src">źródło: <a href="https://pl.wikipedia.org/wiki/'+encodeURIComponent(r.imie)+'" target="_blank" rel="noopener noreferrer">polska Wikipedia</a></p>':'')+
+         '</div></div></td></tr>';
+    });
+    rowsEl.innerHTML=h||'<tr><td colspan="7"><div class="empty">Nic nie pasuje do tych ustawień - spróbuj poluzować filtry.</div></td></tr>';
+    markHead();pushState();
+  }
+  function markHead(){
+    [].forEach.call(headEl.querySelectorAll("th[data-key]"),function(th){
+      var on=th.getAttribute("data-key")===state.sort;
+      th.setAttribute("data-active",on?"1":"0");
+      var arr=th.querySelector(".arr");if(arr)arr.textContent=on?(state.dir===1?"▲":"▼"):"▲";
+    });
+  }
+
+  document.getElementById("seg-gender").addEventListener("click",function(e){
+    var b=e.target.closest("button");if(!b)return;
+    [].forEach.call(this.querySelectorAll("button"),function(x){x.setAttribute("aria-pressed","false");});
+    b.setAttribute("aria-pressed","true");state.g=b.getAttribute("data-g");
+    displayAll=false;page=0;buildOriginOptions();render();
+  });
+  function syncLen(){
+    var mn=+lenMin.value,mx=+lenMax.value;
+    if(mn>mx){if(this===lenMin){mx=mn;lenMax.value=mx;}else{mn=mx;lenMin.value=mn;}}
+    state.min=mn;state.max=mx;displayAll=false;page=0;
+    lenVal.textContent=(mn===mx?mn+" liter":mn+"–"+mx+" liter");render();
+  }
+  lenMin.addEventListener("input",syncLen);lenMax.addEventListener("input",syncLen);
+  originSel.addEventListener("change",function(){state.origin=this.value;displayAll=false;page=0;render();});
+  var tt;searchEl.addEventListener("input",function(){clearTimeout(tt);tt=setTimeout(function(){state.q=searchEl.value;displayAll=false;page=0;render();},140);});
+  headEl.addEventListener("click",function(e){
+    var th=e.target.closest("th[data-key]");if(!th)return;
+    var k=th.getAttribute("data-key");
+    if(state.sort===k)state.dir*=-1;else{state.sort=k;state.dir=(k==="imie"||k==="pochodzenie")?1:-1;}
+    render();
+  });
+  rowsEl.addEventListener("click",function(e){
+    var tr=e.target.closest("tr.main");if(!tr)return;
+    var i=tr.getAttribute("data-i"),det=rowsEl.querySelector('tr.detail[data-d="'+i+'"]');
+    var open=tr.getAttribute("aria-expanded")==="true";
+    tr.setAttribute("aria-expanded",open?"false":"true");
+    if(det){
+      var inner=det.querySelector(".detail-inner");
+      if(open){
+        inner.setAttribute("aria-hidden","true");
+        det.classList.remove("open");
+      } else {
+        inner.removeAttribute("aria-hidden");
+        det.classList.add("open");
+        setTimeout(function(){
+          var pad=det.querySelector(".detail-pad");
+          if(pad){pad.setAttribute("tabindex","-1");pad.focus();}
+        },100);
+      }
+    }
+  });
+  prevBtn.addEventListener("click",function(){if(page>0){page--;render();}});
+  nextBtn.addEventListener("click",function(){if(page<Math.ceil(sorted(filtered()).length/PER_PAGE)-1){page++;render();}});
+  viewAllBtn.addEventListener("click",function(){if(displayAll){displayAll=false;page=0}else{displayAll=true}render();});
+  randBtn.addEventListener("click",function(){
+    var all=sorted(filtered());
+    if(!all.length)return;
+    var pick=all[Math.floor(Math.random()*all.length)];
+    displayAll=true;render();
+    setTimeout(function(){
+      var tr=rowsEl.querySelector('tr.main[data-imie="'+esc(pick.imie)+'"]');
+      if(tr){tr.scrollIntoView({behavior:"smooth",block:"center"});tr.click();}
+    },60);
+  });
+  document.getElementById("csv-btn").addEventListener("click",function(){
+    var all=sorted(filtered());
+    if(!all.length)return;
+    var shown=displayAll?all:all.slice(page*PER_PAGE,page*PER_PAGE+PER_PAGE);
+    var csv="\uFEFFimię,długość,pochodzenie,pierwsze,drugie,łącznie\n";
+    shown.forEach(function(r){
+      var o=originLabel(r.pochodzenie);
+      csv+='"'+r.imie+'",'+r.imie.length+',"'+o+'",'+(r.wystapienia_pierwsze||0)+","+(r.wystapienia_drugie||0)+","+((r.wystapienia_pierwsze||0)+(r.wystapienia_drugie||0))+"\n";
+    });
+    var blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="nazwozbior.csv";document.body.appendChild(a);a.click();
+    document.body.removeChild(a);URL.revokeObjectURL(a.href);
+  });
+  var backBtn=document.getElementById("back-top");
+  addEventListener("scroll",function(){backBtn.style.display=scrollY>500?"block":"none";});
+  backBtn.addEventListener("click",function(){scrollTo({top:0,behavior:"smooth"});});
+  loadState();
+  var gBtn=document.getElementById("seg-gender").querySelector('[data-g="'+state.g+'"]');
+  if(gBtn){[].forEach.call(document.getElementById("seg-gender").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed","false");});gBtn.setAttribute("aria-pressed","true");}
+  lenMin.value=state.min;lenMax.value=state.max;
+  lenVal.textContent=(state.min===state.max?state.min+" liter":state.min+"–"+state.max+" liter");
+  if(state.q)searchEl.value=state.q;
+  buildOriginOptions();render();
+})();
+</script>
+<script>
+(function(){
+  var c=document.getElementById('particles-canvas'),x=c.getContext('2d'),
+      p=[],m={x:-1e4,y:-1e4},rgb='',C=20;
+  function rs(){c.width=innerWidth;c.height=innerHeight}
+  function isLight(){return d.documentElement.getAttribute('data-theme')==='light'}
+  function rd(){
+    var prop=isLight()?'--ink':'--accent',s=getComputedStyle(d.documentElement).getPropertyValue(prop).trim();
+    if(!s)s=isLight()?'#241b24':'#e64aa6';
+    rgb=parseInt(s.slice(1,3),16)+','+parseInt(s.slice(3,5),16)+','+parseInt(s.slice(5,7),16);
+  }
+  var d=document;rd();
+  new MutationObserver(rd).observe(d.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  function P(){
+    var sz=isLight()?3:1.5;
+    this.x=Math.random()*c.width;this.y=Math.random()*c.height;
+    this.vx=(Math.random()-.5)*.2;this.vy=(Math.random()-.5)*.2;
+    this.r=sz+Math.random()*sz;this.a=Math.random()*.35+.08;
+    this.ph=Math.random()*6.28;this.ps=.01+Math.random()*.025;
+  }
+  P.prototype.step=function(){
+    var dx=this.x-m.x,dy=this.y-m.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<160&&d>0){var f=(160-d)/160*.6;this.vx+=dx/d*f*.08;this.vy+=dy/d*f*.08}
+    this.x+=this.vx;this.y+=this.vy;this.vx*=.97;this.vy*=.97;this.ph+=this.ps;
+    if(this.x<-30)this.x=c.width+30;if(this.x>c.width+30)this.x=-30;
+    if(this.y<-30)this.y=c.height+30;if(this.y>c.height+30)this.y=-30;
+  };
+  function f(){
+    x.clearRect(0,0,c.width,c.height);
+    for(var i=0;i<p.length;i++){
+      var q=p[i];q.step();var pa=q.a*(.4+.6*Math.sin(q.ph));
+      x.beginPath();x.arc(q.x,q.y,q.r*4,0,7);x.fillStyle='rgba('+rgb+','+(pa*.12)+')';x.fill();
+      x.beginPath();x.arc(q.x,q.y,q.r,0,7);x.fillStyle='rgba('+rgb+','+pa+')';x.fill()
+    }
+    requestAnimationFrame(f);
+  }
+  var t;d.addEventListener('mousemove',function(e){
+    if(t)cancelAnimationFrame(t);t=requestAnimationFrame(function(){m.x=e.clientX;m.y=e.clientY})});
+  d.addEventListener('mouseleave',function(){m.x=-1e4;m.y=-1e4});
+  addEventListener('resize',rs);
+  rs();for(var i=0;i<C;i++)p.push(new P());f();
+})();
+</script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');</script>
+</body>
+</html>

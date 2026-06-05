@@ -1,0 +1,49 @@
+name: zbuduj
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Cache Wikipedii
+        uses: actions/cache@v4
+        with:
+          path: .cache_wiki
+          key: wiki-${{ hashFiles('zbuduj_dataset.py') }}
+          restore-keys: wiki-
+      - name: Instaluj zależności
+        run: pip install requests openpyxl
+      - name: Generuj dane
+        run: python3 zbuduj_dataset.py
+      - name: Przygotuj artifact dla Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy na GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
