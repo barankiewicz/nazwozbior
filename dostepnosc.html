@@ -16,7 +16,7 @@
     --ink:#241b24; --muted:#6f6470; --faint:#6a5c6b;
     --line:#f0e2ec; --line-strong:#e3cfdd;
     --row-hover:#fdf0f8; --link:#a3107a; --accent:var(--magenta);
-    --radius:16px; --maxw:740px;
+    --radius:16px; --maxw:600px;
     --font:"Atkinson Hyperlegible",ui-sans-serif,-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
     --display:"Baloo 2","Atkinson Hyperlegible",system-ui,sans-serif;
   }
@@ -34,7 +34,7 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{font-family:var(--font);color:var(--ink);background:var(--bg);line-height:1.7;
+  body{font-family:var(--font);color:var(--ink);background:var(--bg);line-height:1.6;
     -webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
   @media (prefers-reduced-motion:reduce){body{transition:none}}
   a{color:var(--link)} a:hover{text-decoration:underline;text-underline-offset:2px}
@@ -51,29 +51,15 @@
   .brand-name{font-family:var(--display);font-weight:700;font-size:20px;color:var(--ink);
     text-decoration:none;letter-spacing:-.02em}
   .brand-name:hover{text-decoration:none}
-  h1{font-family:var(--display);font-weight:700;font-size:28px;margin:48px 0 16px;letter-spacing:-.02em}
-  h2{font-family:var(--display);font-weight:600;font-size:20px;margin:36px 0 8px;color:var(--accent)}
-  p{margin:0 0 12px}
-  ul{margin:0 0 20px;padding:0 0 0 20px}
-  li{margin-bottom:6px}
-  code{font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:4px}
-  .features{list-style:none;padding:0;display:grid;gap:0}
-  .features li{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 20px;
-    margin-bottom:8px}
-  .features li strong{display:block;font-size:15px;margin-bottom:4px}
-  .features li p{margin:0;font-size:14px;color:var(--muted)}
-  .features li .tag{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-    padding:1px 8px;border-radius:4px;margin-top:4px}
-  .tag-html{background:#e44d2618;color:#e44d26}
-  .tag-wcag{background:#0b5cff18;color:#0b5cff}
-  .tag-css{background:#1572b618;color:#1572b6}
-  .tag-aria{background:#005a9c18;color:#005a9c}
-  .tag-ux{background:#7b1fa218;color:#7b1fa2}
-  .back{display:inline-flex;align-items:center;gap:6px;margin-top:32px;font-size:14px}
-  .back:hover{text-decoration:underline}
-  footer{margin:48px 0 58px;padding-top:24px;border-top:2px solid var(--line);
+  h1{font-family:var(--display);font-weight:700;font-size:28px;margin:48px 0 8px;letter-spacing:-.02em}
+  p{margin:0 0 20px;color:var(--muted)}
+  .list{list-style:none;padding:0;display:grid;gap:6px}
+  .list li{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 18px;
+    font-size:15px}
+  .list li span{display:block;color:var(--faint);font-size:12px;margin-top:2px}
+  .back{display:inline-flex;align-items:center;gap:6px;margin-top:24px;font-size:14px}
+  footer{margin:60px 0 58px;padding-top:24px;border-top:2px solid var(--line);
     color:var(--faint);font-size:13px}
-  hr{border:none;border-top:1px solid var(--line);margin:24px 0}
 </style>
 </head>
 <body>
@@ -87,70 +73,21 @@
   </div>
 
   <h1>Dostępność</h1>
-  <p>Nazwozbiór został zaprojektowany z myślą o&nbsp;różnorodnych potrzebach użytkowniczek i&nbsp;użytkowników. Poniżej lista wdrożonych rozwiązań.</p>
+  <p>Nazwozbiór został zaprojektowany tak, żeby działał dla każdego.</p>
 
-  <ul class="features">
-    <li>
-      <strong>Pomijanie nawigacji (skip-link)</strong>
-      <p>Pierwszym klikalnym elementem na stronie jest niewidoczny link „Przejdź do treści", który po otrzymaniu fokusu staje się widoczny. Pozwala ominąć blok filtrów i od razu przejść do tabeli z wynikami.</p>
-      <span class="tag tag-html">HTML</span>
-    </li>
-    <li>
-      <strong>Widoczny fokus</strong>
-      <p>Niestandardowe style <code>:focus-visible</code> na wszystkich interaktywnych elementach: przyciskach, linkach, polach formularza. Gruba obwódka w kolorze akcentu (<code>3px</code>) z odstępem (<code>2px</code>).</p>
-      <span class="tag tag-css">CSS</span> <span class="tag tag-ux">UX</span>
-    </li>
-    <li>
-      <strong>Obszar live ARIA</strong>
-      <p>Licznik wyników (<code>span[aria-live="polite"][aria-atomic="true"]</code>) informuje czytniki ekranu o zmianie liczby imion bez przerywania bieżącej czynności.</p>
-      <span class="tag tag-aria">ARIA</span>
-    </li>
-    <li>
-      <strong>Odpowiednia hierarchia nagłówków</strong>
-      <p>Strona ma jeden nagłówek <code>&lt;h1&gt;</code> oraz <code>&lt;h2&gt;</code> dla sekcji filtrów. Tabela ma podpis (<code>&lt;caption&gt;</code>) opisujący jej zawartość.</p>
-      <span class="tag tag-html">HTML</span>
-    </li>
-    <li>
-      <strong>Kontrast kolorów WCAG AA</strong>
-      <p>Każda para kolorów (tło/tekst) spełnia współczynnik kontrastu ≥&nbsp;4,5:1 dla tekstu podstawowego i ≥&nbsp;3:1 dla dużego tekstu, w&nbsp;obu motywach (ciemny i&nbsp;jasny).</p>
-      <span class="tag tag-wcag">WCAG AA</span>
-    </li>
-    <li>
-      <strong>Szacunek dla redukcji ruchu</strong>
-      <p>Gdy system operacyjny ma włączoną opcję ograniczania animacji (<code>prefers-reduced-motion: reduce</code>), cząsteczki na tle są wyłączone, a&nbsp;wszystkie przejścia CSS (<code>transition</code>) wygaszone.</p>
-      <span class="tag tag-css">CSS</span>
-    </li>
-    <li>
-      <strong>Nawigacja klawiaturą</strong>
-      <p>Wszystkie funkcje są dostępne z klawiatury: wybór płci (Tab + Enter/Spacja), zakresy, lista rozwijana pochodzenia, sortowanie tabeli, rozwijanie szczegółów, losowanie, eksport CSV.</p>
-      <span class="tag tag-ux">UX</span>
-    </li>
-    <li>
-      <strong>Język strony</strong>
-      <p>Deklaracja <code>lang="pl"</code> na elemencie <code>&lt;html&gt;</code> informuje czytniki ekranu o języku polskim. Czytelnicy dostają odpowiedni profil wymowy.</p>
-      <span class="tag tag-html">HTML</span>
-    </li>
-    <li>
-      <strong>Etykiety ARIA</strong>
-      <p>Pola formularzy, przyciski i kontrolki mają opisowe etykiety (<code>aria-label</code> lub <code>&lt;label&gt;</code>), np. „minimalna liczba wystąpień", „wylosuj imię z obecnych filtrów".</p>
-      <span class="tag tag-aria">ARIA</span>
-    </li>
-    <li>
-      <strong>Semantyczny HTML</strong>
-      <p>Użyto natywnych elementów: <code>&lt;button&gt;</code> zamiast <code>&lt;div onclick&gt;</code>, <code>&lt;table&gt;</code> dla danych tabelarycznych, <code>&lt;select&gt;</code> z <code>&lt;option&gt;</code> dla listy pochodzenia.</p>
-      <span class="tag tag-html">HTML</span>
-    </li>
-    <li>
-      <strong>Brak ciasteczek i śledzenia</strong>
-      <p>Strona nie używa ciasteczek, nie ładuje zewnętrznych skryptów (poza czcionkami z Google Fonts), nie śledzi użytkownika. Prywatność jest dostępnością.</p>
-      <span class="tag tag-ux">UX</span>
-    </li>
+  <ul class="list">
+    <li>Przeskocz nawigację — pierwszy Tab kieruje do treści.<span>skip-link</span></li>
+    <li>Każdy przycisk i link ma widoczny fokus.<span>:focus-visible</span></li>
+    <li>Czytnik ekranu słyszy zmiany wyników i filtrów.<span>aria-live</span></li>
+    <li>Klawiatura wystarczy do wszystkiego — filtrów, sortowania, losowania, CSV.<span>nawigacja klawiaturą</span></li>
+    <li>Kontrast spełnia WCAG AA w obu motywach.<span>kontrast kolorów</span></li>
+    <li>prefers-reduced-motion — animacje i cząsteczki gasną.<span>ruch</span></li>
+    <li>Zero ciasteczek, zero trackingu, zero zewnętrznych skryptów.<span>prywatność</span></li>
   </ul>
 
-  <hr>
-  <p style="font-size:14px;color:var(--muted)">Nazwozbiór jest projektem hobbystycznym. Deklaracja dostępności powstała w czerwcu 2026&nbsp;r. Jeśli napotkasz barierę, <a href="https://github.com/barankiewicz/wymysl-imie-trans/issues">daj znać na GitHubie</a>.</p>
+  <p style="font-size:13px">Jeśli coś nie gra, <a href="https://github.com/barankiewicz/wymysl-imie-trans/issues">zgłoś na GitHubie</a>.</p>
 
-  <a href="index.html" class="back">← wróć do wyszukiwarki</a>
+  <a href="index.html" class="back">← wróć</a>
 
   <footer>
     <span>Nazwozbiór · dostępność zadeklarowana</span>
