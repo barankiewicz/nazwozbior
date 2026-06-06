@@ -42,7 +42,63 @@ RATE_LIMIT_REQ   = 100
 RATE_LIMIT_WIN   = 60
 MAX_RETRIES    = 5
 BATCH_SIZE      = 20
-API            = f"https://{WIKI_LANG}.wikipedia.org/w/api.php"
+API_PL         = "https://pl.wikipedia.org/w/api.php"
+API_EN         = "https://en.wikipedia.org/w/api.php"
+API_WIKIDATA   = "https://www.wikidata.org/w/api.php"
+
+WD_RATE_LIMIT_REQ = 50
+WD_RATE_LIMIT_WIN = 60
+EN_RATE_LIMIT_REQ = 100
+EN_RATE_LIMIT_WIN = 60
+
+# Mapowanie angielskich kategorii Wikipedii → nasze etykiety pochodzenia
+EN_CATEGORY_ORIGINS = [
+    ("polish", "slowianskie"),
+    ("ukrainian", "ukrainskie"), ("belarusian", "slowianskie"),
+    ("russian", "rosyjskie"),
+    ("czech", "slowianskie"), ("slovak", "slowianskie"),
+    ("croatian", "slowianskie"), ("serbian", "slowianskie"),
+    ("bulgarian", "slowianskie"), ("slovene", "slowianskie"),
+    ("bosnian", "slowianskie"), ("macedonian", "slowianskie"),
+    ("montenegrin", "slowianskie"),
+    ("slavic", "slowianskie"), ("slav", "slowianskie"),
+    ("lithuanian", "litewskie"), ("latvian", "litewskie"),
+    ("italian", "wloskie"), ("romance", "romanskie"), ("romanian", "romanskie"),
+    ("french", "francuskie"), ("provençal", "prowansalskie"),
+    ("spanish", "hiszpanskie"), ("portuguese", "hiszpanskie"), ("portugal", "hiszpanskie"),
+    ("catalan", "hiszpanskie"), ("galician", "hiszpanskie"),
+    ("german", "germanskie"), ("germanic", "germanskie"),
+    ("dutch", "holenderskie"), ("netherlands", "holenderskie"),
+    ("swiss", "germanskie"), ("austrian", "germanskie"),
+    ("old high german", "germanskie"),
+    ("greek", "greckie"),
+    ("latin", "lacinskie"),
+    ("hebrew", "hebrajskie"), ("biblical", "hebrajskie"), ("israeli", "hebrajskie"),
+    ("arabic", "arabskie"), ("muslim", "arabskie"), ("islamic", "arabskie"),
+    ("turkish", "tureckie"), ("turkic", "tureckie"), ("azerbaijani", "tureckie"),
+    ("celtic", "celtyckie"), ("gaelic", "celtyckie"), ("irish", "celtyckie"),
+    ("scottish", "celtyckie"), ("welsh", "celtyckie"), ("breton", "celtyckie"),
+    ("cornish", "celtyckie"), ("manx", "celtyckie"),
+    ("norse", "skandynawskie"), ("scandinavian", "skandynawskie"),
+    ("swedish", "skandynawskie"), ("norwegian", "skandynawskie"),
+    ("danish", "skandynawskie"), ("icelandic", "skandynawskie"), ("faroese", "skandynawskie"),
+    ("old norse", "skandynawskie"),
+    ("finnish", "finskie"), ("estonian", "finskie"),
+    ("hungarian", "wegierskie"),
+    ("persian", "perskie"), ("iranian", "perskie"), ("old persian", "perskie"),
+    ("indian", "indyjskie"), ("hindi", "indyjskie"), ("sanskrit", "sanskryckie"),
+    ("tamil", "indyjskie"), ("bengali", "indyjskie"), ("punjabi", "indyjskie"),
+    ("japanese", "japonskie"), ("chinese", "chinskie"), ("korean", "chinskie"),
+    ("assyrian", "arabskie"),
+    ("egyptian", "egipskie"), ("phoenician", "fenickie"), ("hethit", "hebrajskie"),
+    ("english", "angielskie"), ("anglo-saxon", "anglosaskie"), ("anglo-s", "anglosaskie"),
+    ("old english", "anglosaskie"),
+    ("american", "amerykanskie"),
+    ("african", "arabskie"), ("swahili", "arabskie"),
+    ("mongolian", "mongolskie"), ("basque", "baskijskie"),
+    ("old church slavonic", "slowianskie"),
+    ("old slavonic", "slowianskie"),
+]
 
 ORIGIN_MAP = [
     ("starogreck", "greckie"), ("grec", "greckie"),
@@ -55,7 +111,7 @@ ORIGIN_MAP = [
     ("hebr", "hebrajskie"), ("aramej", "aramejskie"), ("semick", "hebrajskie"), ("biblij", "hebrajskie"),
     ("celt", "celtyckie"), ("arab", "arabskie"), ("pers", "perskie"),
     ("litew", "litewskie"), ("egip", "egipskie"), ("sanskry", "sanskryckie"),
-    ("ind", "indyjskie"), ("turec", "tureckie"), ("baskij", "baskijskie"),
+    ("indyj", "indyjskie"), ("indii", "indyjskie"), ("turec", "tureckie"), ("baskij", "baskijskie"),
     ("anglosas", "anglosaskie"), ("angiel", "angielskie"),
     ("francus", "francuskie"), ("hiszpa", "hiszpanskie"),
     ("włos", "wloskie"), ("wlos", "wloskie"), ("roman", "romanskie"),
@@ -63,7 +119,7 @@ ORIGIN_MAP = [
     ("wegier", "wegierskie"), ("węgier", "wegierskie"),
     ("fin", "finskie"), ("etiop", "etiopskie"), ("fenick", "fenickie"),
     ("akadyj", "akadyjskie"), ("sumeryj", "sumeryjskie"), ("egipsk", "egipskie"),
-    ("iber", "iberyjskie"), ("etrur", "etruskie"), ("iber", "iberyjskie"),
+    ("iber", "iberyjskie"), ("etrur", "etruskie"),
     ("amer", "amerykanskie"), ("japo", "japonskie"), ("chin", "chinskie"),
     ("mongol", "mongolskie"), ("polinezyj", "polinezyjskie"),
     ("persk", "perskie"), ("hindi", "indyjskie"), ("urdu", "indyjskie"),
@@ -110,17 +166,22 @@ class RateLimiter:
         self._timestamps.append(now)
 
 class WikiAPIClient:
-    def __init__(self, session, rate_limiter, max_retries=MAX_RETRIES):
+    def __init__(self, session, rate_limiter, max_retries=MAX_RETRIES,
+                 base_url=API_PL):
         self.session = session
         self.ratelimit = rate_limiter
         self.max_retries = max_retries
+        self.base_url = base_url
 
     def get(self, params, timeout=60):
         self.ratelimit.wait_if_needed()
-        params["maxlag"] = MAXLAG
+        if "maxlag" in params:
+            pass  # jesli juz ustawione, zostaw
+        else:
+            params["maxlag"] = MAXLAG
         for attempt in range(self.max_retries):
             try:
-                r = self.session.get(API, params=params, timeout=timeout)
+                r = self.session.get(self.base_url, params=params, timeout=timeout)
                 if r.status_code == 429:
                     retry = int(r.headers.get("Retry-After", 30))
                     print(f"    429, czekam {retry}s")
@@ -238,6 +299,61 @@ def save_cache(name, data):
 
 # ----------------------------------------------------- POCHODZENIE Z TEKSTU
 
+def is_name_article(categories):
+    """Sprawdza czy kategorie wskazuja na artykul o imieniu (nie o bandzie/filmie/etc)."""
+    if not categories:
+        return None
+    name_hints = 0
+    other_hints = 0
+    other_keywords = [
+        "zespół", "zespoły", "album", "albumy", "utwór", "utwory",
+        "film", "filmy", "serial", "seriale", "piosenka", "piosenki",
+        "singel", "single", "gra", "gry", "książka", "książki",
+        "powieść", "powieści", "muzyk", "muzyka",
+        "miasto", "miasta", "wieś", "wsi", "gmina", "państwo", "państwa",
+        "wyspa", "wyspy", "rzeka", "rzeki", "jezioro", "jeziora",
+        "roślina", "rośliny", "zwierzę", "zwierzęta", "organizm",
+        "przedsiębiorstwo", "linia lotnicza", "statek", "statki",
+        "sportowiec", "piłkarz", "aktor", "aktorka", "polityk",
+        "wojskowy", "duchowny", "naukowiec", "reżyser",
+        "dostawca", "konstruktor", "producent",
+    ]
+    for c in categories:
+        cl = c.lower()
+        if "ujednoznaczn" in cl:
+            return False
+        if any(w in cl for w in ["imion", "imię", "imienia", "imieniem", "imieniu"]):
+            name_hints += 1
+        elif any(w in cl for w in other_keywords):
+            other_hints += 1
+    if name_hints > 0:
+        return True
+    if other_hints > 0:
+        return False
+    return None
+
+EN_NAME_CAT_RE = re.compile(r'(masculine|feminine|unisex)\s+given\s+name', re.I)
+
+def is_name_article_en(categories):
+    """Sprawdza po EN kategoriach czy artykul dotyczy imienia."""
+    if not categories:
+        return False
+    for c in categories:
+        if EN_NAME_CAT_RE.search(c):
+            return True
+    return False
+
+def origin_from_en_categories(categories):
+    """Wykrywa pochodzenie z angielskich kategorii Wikipedii."""
+    if not categories:
+        return ""
+    for c in categories:
+        cl = c.lower().replace("category:", "")
+        for keyword, origin in EN_CATEGORY_ORIGINS:
+            if keyword in cl:
+                return origin
+    return ""
+
 def wykryj_pochodzenie(plain, categories=None):
     """Wykrywa pochodzenie z tekstu intru + kategorii artykulu."""
     origin = ""
@@ -274,6 +390,148 @@ def wykryj_pochodzenie(plain, categories=None):
             if origin:
                 break
     return origin
+
+# -------------------------------------------------------- WIKIDANE
+
+WD_SEARCH_CACHE = {}
+
+def search_wikidata(name, client_wd):
+    """Szuka encji w Wikidanych po etykiecie."""
+    if name in WD_SEARCH_CACHE:
+        return WD_SEARCH_CACHE[name]
+    params = {
+        "action": "wbsearchentities",
+        "search": name,
+        "language": "pl",
+        "limit": 5,
+        "format": "json",
+    }
+    try:
+        data = client_wd.get(params, timeout=30)
+    except Exception:
+        WD_SEARCH_CACHE[name] = []
+        return []
+    results = []
+    for ent in data.get("search", []):
+        qid = ent.get("id", "")
+        label = ent.get("label", "")
+        desc = ent.get("description", "")
+        match_score = 0
+        # prefer exact match
+        if label.lower() == name.lower():
+            match_score = 2
+        elif label.lower() in name.lower() or name.lower() in label.lower():
+            match_score = 1
+        # prefer 'given name' or 'name' description
+        dlow = desc.lower()
+        if "given name" in dlow or "imię" in dlow or "surname" in dlow:
+            match_score += 1
+        results.append({"id": qid, "label": label, "desc": desc, "score": match_score})
+    results.sort(key=lambda x: -x["score"])
+    WD_SEARCH_CACHE[name] = results
+    return results
+
+# Mapowanie wartości P495 (kraj) i P407 (język) z Wikidanych na nasze etykiety
+# Używamy polskich etykiet z Wikidanych, dopasowujemy przez ORIGIN_MAP
+def origin_from_wikidata_claims(claims, value_labels=None):
+    """Wyciaga pochodzenie z claimow Wikidanych.
+
+    value_labels: dict {qid: {"pl": label, "en": label}} dla wartosci claimow
+    """
+    if value_labels is None:
+        value_labels = {}
+    for prop_id in ("P495", "P407", "P1416"):
+        prop_claims = claims.get(prop_id, [])
+        for claim in prop_claims:
+            mainsnak = claim.get("mainsnak", {})
+            if mainsnak.get("snaktype") != "value":
+                continue
+            datavalue = mainsnak.get("datavalue", {})
+            value = datavalue.get("value", {})
+            if isinstance(value, dict):
+                qid = value.get("id", "")
+                # Najpierw sprawdzamy pobrane etykiety
+                lbls = value_labels.get(qid, {})
+                for lang in ("pl", "en"):
+                    label = (lbls.get(lang, "") or "").lower()
+                    if label:
+                        for frag, origin in ORIGIN_MAP:
+                            if frag in label:
+                                return origin
+                # Jesli nie ma etykiet, sprawdz label z datavalue
+                label = (value.get("label", "") or value.get("id", "") or "").lower()
+                if label and label.startswith("q"):
+                    continue
+                if label:
+                    for frag, origin in ORIGIN_MAP:
+                        if frag in label:
+                            return origin
+    return ""
+
+def get_wikidata_entities(qids, client_wd):
+    """Pobiera encje Wikidanych + polskie etykiety dla listy QIDow."""
+    if not qids:
+        return {}
+    params = {
+        "action": "wbgetentities",
+        "ids": "|".join(qids),
+        "props": "claims|sitelinks|labels",
+        "languages": "pl|en",
+        "format": "json",
+    }
+    try:
+        data = client_wd.get(params, timeout=60)
+    except Exception:
+        return {}
+    return data.get("entities", {})
+
+# -------------------------------------------------------- EN WIKIPEDIA
+
+def check_en_wikipedia(names, client_en):
+    """Sprawdza angielska Wikipedie: kategorie + czy to imie.
+    Zwraca dict {name: {"exists": bool, "is_name": bool, "origin": str, "cats": [str]}}
+    """
+    cache = load_cache("phase_en.json")
+    todo = [n for n in names if n not in cache]
+    print(f"  EN Wikipedia: {len(todo)} nowych z {len(names)} (w cache: {len(cache)})")
+    for i in range(0, len(todo), BATCH_SIZE):
+        batch = todo[i:i+BATCH_SIZE]
+        params = {
+            "action": "query", "format": "json",
+            "prop": "categories",
+            "cllimit": "max", "clshow": "!hidden",
+            "redirects": 1, "formatversion": 2,
+            "titles": "|".join(batch),
+        }
+        try:
+            data = client_en.get(params)
+        except Exception as e:
+            print(f"    blad EN batch: {e}")
+            for n in batch:
+                cache[n] = {"exists": False, "is_name": False, "origin": "", "cats": []}
+            continue
+        pages = data.get("query", {}).get("pages", [])
+        norm = {}
+        for rd in data.get("query", {}).get("redirects", []):
+            norm[rd["from"]] = rd["to"]
+        for nm in data.get("query", {}).get("normalized", []):
+            norm[nm["from"]] = nm["to"]
+        pg_by_title = {}
+        for pg in pages:
+            pg_by_title[pg.get("title", "")] = pg
+        for n in batch:
+            t = norm.get(n, n)
+            pg = pg_by_title.get(t) or pg_by_title.get(n) or {}
+            missing = pg.get("missing", False)
+            cats = [c["title"] for c in pg.get("categories", [])]
+            is_name = is_name_article_en(cats)
+            origin = origin_from_en_categories(cats) if is_name else ""
+            cache[n] = {"exists": (not missing), "is_name": is_name, "origin": origin, "cats": cats}
+        if (i // BATCH_SIZE) % 5 == 0:
+            save_cache("phase_en.json", cache)
+            print(f"    ...{min(i+BATCH_SIZE, len(todo))}/{len(todo)}")
+    save_cache("phase_en.json", cache)
+    return cache
 
 # ----------------------------------------------------------- FAZA 1 — ISTNIENIE
 
@@ -362,6 +620,7 @@ def faza1_istnienie(names, client):
             cache[n]["disambig"] = True
         else:
             cache[n]["disambig"] = False
+    save_cache("phase1.json", cache)
     return cache
 
 # ----------------------------------------------------------- FAZA 2 — OPIS HTML
@@ -431,19 +690,124 @@ def faza2_opis(names, phase1, client):
     save_cache("phase2.json", cache)
     return cache
 
-def wzbogac(rows, client):
+def wczytaj_istniejace_dane():
+    """Wczytuje istniejace datasety JSON jesli istnieja."""
+    def _load(path):
+        if os.path.exists(path):
+            try:
+                return json.load(open(path, encoding="utf-8"))
+            except Exception:
+                return None
+        return None
+    m = _load("dataset_meskie.json")
+    z = _load("dataset_zenskie.json")
+    return m, z
+
+def wzbogac(rows, client_pl, client_en=None, client_wd=None, incremental=False):
+    """Wzbogaca imiona o pochodzenie i opis z wielu zrodel.
+
+    Kolejnosc:
+      1. Polska Wikipedia (tekst + kategorie)
+      2. Jesli brak pochodzenia: angielska Wikipedia (kategorie)
+      3. Jesli nadal brak: Wikidane (strukturalne dane)
+    """
+    if incremental:
+        # Tylko imiona bez pochodzenia i opisu
+        do_process = [r for r in rows if not r.get("pochodzenie") and not r.get("opis_html")]
+        kept = [r for r in rows if r.get("pochodzenie") or r.get("opis_html")]
+        print(f"  Tryb incremental: {len(do_process)} do przetworzenia, "
+              f"{len(kept)} juz gotowych")
+        rows = do_process
+        if not rows:
+            return kept
+
     names = [r["imie"] for r in rows]
-    phase1 = faza1_istnienie(names, client)
-    phase2 = faza2_opis(names, phase1, client)
+    phase1 = faza1_istnienie(names, client_pl) if client_pl else {}
+    phase2 = faza2_opis(names, phase1, client_pl) if client_pl else {}
+
+    # PL Wikipedia
     for r in rows:
         n = r["imie"]
         p1 = phase1.get(n, {})
-        if p1.get("exists") and not p1.get("disambig"):
+        is_name = is_name_article(p1.get("cats", []))
+        is_disambig = (
+            p1.get("disambig", False) or
+            any("ujednoznaczn" in c.lower() for c in p1.get("cats", []))
+        )
+        if p1.get("exists") and not is_disambig and is_name is not False:
             r["pochodzenie"] = wykryj_pochodzenie(p1.get("plain", ""),
                                                   p1.get("cats", []))
         else:
             r["pochodzenie"] = ""
         r["opis_html"] = phase2.get(n, {}).get("opis_html", "")
+        if r["pochodzenie"]:
+            print(f"    PL: {n} -> {r['pochodzenie']}")
+
+    # EN Wikipedia (dla imion bez pochodzenia)
+    if client_en:
+        need_en = [r for r in rows if not r.get("pochodzenie")]
+        if need_en:
+            print(f"  EN Wikipedia (fallback): {len(need_en)} imion bez pochodzenia")
+            en_cache = check_en_wikipedia([r["imie"] for r in need_en], client_en)
+            for r in need_en:
+                en = en_cache.get(r["imie"], {})
+                if en.get("is_name") and en.get("origin"):
+                    r["pochodzenie"] = en["origin"]
+                    print(f"    EN: {r['imie']} -> {r['pochodzenie']}")
+
+    # Wikidane (dla imion nadal bez pochodzenia - tylko sprawdzenie)
+    if client_wd:
+        need_wd = [r for r in rows if not r.get("pochodzenie")]
+        if need_wd:
+            print(f"  Wikidane (fallback): {len(need_wd)} imion bez pochodzenia")
+            wd_results = {}
+            found_qids = []
+            name_to_qid = {}
+            for r in need_wd:
+                results = search_wikidata(r["imie"], client_wd)
+                if results and results[0].get("score", 0) >= 2:
+                    qid = results[0]["id"]
+                    found_qids.append(qid)
+                    name_to_qid[r["imie"]] = qid
+            for i in range(0, len(found_qids), 50):
+                batch = found_qids[i:i+50]
+                entities = get_wikidata_entities(batch, client_wd)
+                for qid, ent in entities.items():
+                    wd_results[qid] = ent
+            # Zbierz QIDy wartosci claimow (kraj/jezyk) i pobierz ich etykiety
+            value_qids = set()
+            for qid, ent in wd_results.items():
+                claims = ent.get("claims", {})
+                for prop in ("P495", "P407", "P1416"):
+                    for claim in claims.get(prop, []):
+                        ms = claim.get("mainsnak", {})
+                        if ms.get("snaktype") == "value":
+                            val = ms.get("datavalue", {}).get("value", {})
+                            if isinstance(val, dict) and val.get("id", "").startswith("Q"):
+                                value_qids.add(val["id"])
+            value_labels = {}
+            vq_list = list(value_qids)
+            for i in range(0, len(vq_list), 50):
+                batch = vq_list[i:i+50]
+                entities = get_wikidata_entities(batch, client_wd)
+                for qid, ent in entities.items():
+                    lbls = ent.get("labels", {})
+                    value_labels[qid] = {
+                        "pl": (lbls.get("pl", {}) or {}).get("value", ""),
+                        "en": (lbls.get("en", {}) or {}).get("value", ""),
+                    }
+            # Przypisz pochodzenie
+            for r in need_wd:
+                qid = name_to_qid.get(r["imie"])
+                if qid and qid in wd_results:
+                    claims = wd_results[qid].get("claims", {})
+                    origin = origin_from_wikidata_claims(claims, value_labels)
+                    if origin:
+                        r["pochodzenie"] = origin
+                        print(f"    WD: {r['imie']} -> {r['pochodzenie']}")
+
+    if incremental:
+        rows = kept + rows
     return rows
 
 # ------------------------------------------------------------------- ZAPIS
@@ -469,11 +833,35 @@ def zapisz_dane_js(meskie, zenskie):
 # ------------------------------------------------------------------- MAIN
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(
+        description="Buduje i wzbogaca dataset imion polskich z PESEL + Wikipedii")
     ap.add_argument("--limit", type=int, default=LIMIT_NA_PLEC,
                     help="Wzbogac tylko N najpopularniejszych imion kazdej plci.")
+    ap.add_argument("--incremental", "-i", action="store_true",
+                    help="Tryb przyrostowy: wczytaj istniejace dane, "
+                         "przetworz tylko imiona bez pochodzenia/opisu.")
+    ap.add_argument("--shutdown", action="store_true",
+                    help="Wylacz komputer po zakonczeniu.")
+    ap.add_argument("--skip-pl", action="store_true",
+                    help="Pomin polska Wikipedie (uzyj jesli cache jest gotowy).")
+    ap.add_argument("--skip-en", action="store_true",
+                    help="Pomin angielska Wikipedie.")
+    ap.add_argument("--skip-wd", action="store_true",
+                    help="Pomin Wikidane.")
     args = ap.parse_args()
     os.makedirs(RAW_DIR, exist_ok=True)
+
+    if args.incremental:
+        print("[0/4] Tryb przyrostowy - laduje istniejace dane …")
+        m_istniejace, z_istniejace = wczytaj_istniejace_dane()
+        if m_istniejace is not None and z_istniejace is not None:
+            print(f"      Wczytano: meskie {len(m_istniejace)}, "
+                  f"zenskie {len(z_istniejace)}")
+            # Zbuduj tylko nowe dane z PESEL (ale PESEL moze miec nowsze dane)
+            # W trybie incremental lączymy: najpierw wczytujemy PESEL,
+            # potem mergujemy z istniejacymi danymi
+        else:
+            print("      Brak istniejacych danych, przechodze do normalnego trybu.")
 
     print("[1/4] Pobieram liste zasobow z dane.gov.pl …")
     zasoby = pobierz_zasoby()
@@ -492,6 +880,22 @@ def main():
     zenskie = zbuduj(pliki["z_pierwsze"], pliki["z_drugie"])
     print(f"      meskie: {len(meskie)} imion, zenskie: {len(zenskie)} imion")
 
+    # W trybie incremental: merge PESEL z istniejacymi danymi
+    if args.incremental and m_istniejace is not None and z_istniejace is not None:
+        def merge(new_rows, old_rows):
+            old_by_name = {r["imie"]: r for r in old_rows}
+            for r in new_rows:
+                old = old_by_name.get(r["imie"])
+                if old:
+                    r["pochodzenie"] = old.get("pochodzenie", "")
+                    r["opis_html"] = old.get("opis_html", "")
+            return new_rows
+        meskie = merge(meskie, m_istniejace)
+        zenskie = merge(zenskie, z_istniejace)
+        n_zrodlo = sum(1 for r in meskie + zenskie
+                       if r.get("pochodzenie") or r.get("opis_html"))
+        print(f"      Z istniejacych danych: {n_zrodlo} imion ma pochodzenie/opis")
+
     if args.limit:
         print(f"      LIMIT: tylko {args.limit} najpopularniejszych kazdej plci")
         do_m, do_z = meskie[:args.limit], zenskie[:args.limit]
@@ -500,13 +904,91 @@ def main():
 
     sess = requests.Session()
     sess.headers.update({"User-Agent": USER_AGENT})
-    ratelimiter = RateLimiter(RATE_LIMIT_REQ, RATE_LIMIT_WIN)
-    client = WikiAPIClient(sess, ratelimiter)
+    ratelimiter_pl = RateLimiter(RATE_LIMIT_REQ, RATE_LIMIT_WIN)
+    client_pl = WikiAPIClient(sess, ratelimiter_pl)
 
-    print("[3/4] Wzbogacam o Wikipedie (meskie) …")
-    wzbogac(do_m, client)
-    print("[3/4] Wzbogacam o Wikipedie (zenskie) …")
-    wzbogac(do_z, client)
+    client_en = None
+    if not args.skip_en:
+        ratelimiter_en = RateLimiter(EN_RATE_LIMIT_REQ, EN_RATE_LIMIT_WIN)
+        client_en = WikiAPIClient(sess, ratelimiter_en, base_url=API_EN)
+
+    client_wd = None
+    if not args.skip_wd:
+        ratelimiter_wd = RateLimiter(WD_RATE_LIMIT_REQ, WD_RATE_LIMIT_WIN)
+        client_wd = WikiAPIClient(sess, ratelimiter_wd, base_url=API_WIKIDATA)
+
+    needs_en = not args.skip_en
+    needs_wd = not args.skip_wd
+
+    if not args.skip_pl:
+        print("[3/4] Wzbogacam (meskie) …")
+        wzbogac(do_m, client_pl, client_en, client_wd,
+                incremental=args.incremental)
+        print("[3/4] Wzbogacam (zenskie) …")
+        wzbogac(do_z, client_pl, client_en, client_wd,
+                incremental=args.incremental)
+    else:
+        print("[3/4] Pomijam PL Wikipedie (--skip-pl) …")
+        # Tylko EN/WD dla imion bez pochodzenia
+        if needs_en or needs_wd:
+            all_rows = do_m + do_z
+            need = [r for r in all_rows if not r.get("pochodzenie")]
+            if need and needs_en:
+                print(f"  EN Wikipedia: {len(need)} imion …")
+                en_cache = check_en_wikipedia([r["imie"] for r in need], client_en)
+                for r in need:
+                    en = en_cache.get(r["imie"], {})
+                    if en.get("is_name") and en.get("origin"):
+                        r["pochodzenie"] = en["origin"]
+                        print(f"    EN: {r['imie']} -> {r['pochodzenie']}")
+            need = [r for r in all_rows if not r.get("pochodzenie")]
+            if need and needs_wd:
+                print(f"  Wikidane: {len(need)} imion …")
+                wd_results = {}
+                found_qids = []
+                name_to_qid = {}
+                for r in need:
+                    results = search_wikidata(r["imie"], client_wd)
+                    if results and results[0].get("score", 0) >= 2:
+                        qid = results[0]["id"]
+                        found_qids.append(qid)
+                        name_to_qid[r["imie"]] = qid
+                for i in range(0, len(found_qids), 50):
+                    batch = found_qids[i:i+50]
+                    entities = get_wikidata_entities(batch, client_wd)
+                    for qid, ent in entities.items():
+                        wd_results[qid] = ent
+                # Pobierz etykiety dla wartosci claimow
+                value_qids = set()
+                for qid, ent in wd_results.items():
+                    claims = ent.get("claims", {})
+                    for prop in ("P495", "P407", "P1416"):
+                        for claim in claims.get(prop, []):
+                            ms = claim.get("mainsnak", {})
+                            if ms.get("snaktype") == "value":
+                                val = ms.get("datavalue", {}).get("value", {})
+                                if isinstance(val, dict) and val.get("id", "").startswith("Q"):
+                                    value_qids.add(val["id"])
+                value_labels = {}
+                vq_list = list(value_qids)
+                for i in range(0, len(vq_list), 50):
+                    batch = vq_list[i:i+50]
+                    entities = get_wikidata_entities(batch, client_wd)
+                    for qid, ent in entities.items():
+                        lbls = ent.get("labels", {})
+                        value_labels[qid] = {
+                            "pl": (lbls.get("pl", {}) or {}).get("value", ""),
+                            "en": (lbls.get("en", {}) or {}).get("value", ""),
+                        }
+                for r in need:
+                    qid = name_to_qid.get(r["imie"])
+                    if qid and qid in wd_results:
+                        claims = wd_results[qid].get("claims", {})
+                        origin = origin_from_wikidata_claims(claims, value_labels)
+                        if origin:
+                            r["pochodzenie"] = origin
+                            print(f"    WD: {r['imie']} -> {r['pochodzenie']}")
+
     for r in meskie + zenskie:
         r.setdefault("pochodzenie", "")
         r.setdefault("opis_html", "")
@@ -519,8 +1001,9 @@ def main():
     n_po = sum(1 for r in meskie + zenskie if r.get("pochodzenie"))
     print(f"GOTOWE. Imion z opisem: {n_op}, z pochodzeniem: {n_po}.")
     print("Pliki: dataset_*.csv/.json oraz dane.js")
-    print("WYŁĄCZAM…")
-    os.system("shutdown -h now")
+    if args.shutdown:
+        print("WYŁĄCZAM…")
+        os.system("shutdown -h now")
 
 if __name__ == "__main__":
     main()
