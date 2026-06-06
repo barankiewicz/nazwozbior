@@ -471,7 +471,7 @@
            '<p class="freq">w PESEL: <b>'+nf(r.wystapienia_pierwsze)+'</b> os. jako imię pierwsze, '+
              '<b>'+nf(r.wystapienia_drugie)+'</b> jako drugie'+
              (r.pochodzenie?(' · pochodzenie <b>'+originLabel(r.pochodzenie)+'</b>'):'')+'</p>'+
-           '<div class="opis">'+(r.opis_html||'<span style="color:var(--faint)">Nie ma opisu z Wikipedii dla tego imienia - co nie znaczy, że jest gorsze.</span>')+'</div>'+
+           '<div class="opis">'+(r.opis_html||'<span style="color:var(--faint)">Nie ma opisu z Wikipedii dla tego imienia.</span>')+'</div>'+
            (r.opis_html?'<p class="src">źródło: <a href="https://pl.wikipedia.org/wiki/'+encodeURIComponent(r.imie)+'" target="_blank" rel="noopener noreferrer">polska Wikipedia</a></p>':'')+
          '</div></div></td></tr>';
     });
