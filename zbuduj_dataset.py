@@ -703,6 +703,28 @@ def wczytaj_istniejace_dane():
     z = _load("dataset_zenskie.json")
     return m, z
 
+def log_stats(rows, phase_label, counts_before=None):
+    """Loguje statystyki kategoryzacji: po zrodle + nieskategoryzowane."""
+    total = len(rows)
+    cat = sum(1 for r in rows if r.get("pochodzenie"))
+    if counts_before is not None:
+        new = cat - counts_before.get("cat", 0)
+    else:
+        new = 0
+    # podzial wg zrodla
+    from_pl = sum(1 for r in rows if r.get("_zrodlo") == "PL")
+    from_en = sum(1 for r in rows if r.get("_zrodlo") == "EN")
+    from_wd = sum(1 for r in rows if r.get("_zrodlo") == "WD")
+    uncat = total - cat
+    if new:
+        print(f"  [{phase_label}] +{new} skat.  "
+              f"PL={from_pl} EN={from_en} WD={from_wd}  "
+              f"brak={uncat}/{total} ({uncat/total*100:.1f}%)")
+    else:
+        print(f"  [{phase_label}]  "
+              f"PL={from_pl} EN={from_en} WD={from_wd}  "
+              f"brak={uncat}/{total} ({uncat/total*100:.1f}%)")
+
 def wzbogac(rows, client_pl, client_en=None, client_wd=None, incremental=False):
     """Wzbogaca imiona o pochodzenie i opis z wielu zrodel.
 
@@ -712,7 +734,6 @@ def wzbogac(rows, client_pl, client_en=None, client_wd=None, incremental=False):
       3. Jesli nadal brak: Wikidane (strukturalne dane)
     """
     if incremental:
-        # Tylko imiona bez pochodzenia i opisu
         do_process = [r for r in rows if not r.get("pochodzenie") and not r.get("opis_html")]
         kept = [r for r in rows if r.get("pochodzenie") or r.get("opis_html")]
         print(f"  Tryb incremental: {len(do_process)} do przetworzenia, "
@@ -726,6 +747,7 @@ def wzbogac(rows, client_pl, client_en=None, client_wd=None, incremental=False):
     phase2 = faza2_opis(names, phase1, client_pl) if client_pl else {}
 
     # PL Wikipedia
+    before = {"cat": sum(1 for r in rows if r.get("pochodzenie"))}
     for r in rows:
         n = r["imie"]
         p1 = phase1.get(n, {})
@@ -735,30 +757,34 @@ def wzbogac(rows, client_pl, client_en=None, client_wd=None, incremental=False):
             any("ujednoznaczn" in c.lower() for c in p1.get("cats", []))
         )
         if p1.get("exists") and not is_disambig and is_name is not False:
-            r["pochodzenie"] = wykryj_pochodzenie(p1.get("plain", ""),
-                                                  p1.get("cats", []))
-        else:
-            r["pochodzenie"] = ""
+            o = wykryj_pochodzenie(p1.get("plain", ""), p1.get("cats", []))
+            if o:
+                r["pochodzenie"] = o
+                r["_zrodlo"] = "PL"
+                print(f"    PL: {n} -> {o}")
         r["opis_html"] = phase2.get(n, {}).get("opis_html", "")
-        if r["pochodzenie"]:
-            print(f"    PL: {n} -> {r['pochodzenie']}")
+    log_stats(rows, "PL", before)
 
-    # EN Wikipedia (dla imion bez pochodzenia)
+    # EN Wikipedia
     if client_en:
         need_en = [r for r in rows if not r.get("pochodzenie")]
         if need_en:
+            before = {"cat": sum(1 for r in rows if r.get("pochodzenie"))}
             print(f"  EN Wikipedia (fallback): {len(need_en)} imion bez pochodzenia")
             en_cache = check_en_wikipedia([r["imie"] for r in need_en], client_en)
             for r in need_en:
                 en = en_cache.get(r["imie"], {})
                 if en.get("is_name") and en.get("origin"):
                     r["pochodzenie"] = en["origin"]
+                    r["_zrodlo"] = "EN"
                     print(f"    EN: {r['imie']} -> {r['pochodzenie']}")
+            log_stats(rows, "EN", before)
 
-    # Wikidane (dla imion nadal bez pochodzenia - tylko sprawdzenie)
+    # Wikidane
     if client_wd:
         need_wd = [r for r in rows if not r.get("pochodzenie")]
         if need_wd:
+            before = {"cat": sum(1 for r in rows if r.get("pochodzenie"))}
             print(f"  Wikidane (fallback): {len(need_wd)} imion bez pochodzenia")
             wd_results = {}
             found_qids = []
@@ -774,7 +800,6 @@ def wzbogac(rows, client_pl, client_en=None, client_wd=None, incremental=False):
                 entities = get_wikidata_entities(batch, client_wd)
                 for qid, ent in entities.items():
                     wd_results[qid] = ent
-            # Zbierz QIDy wartosci claimow (kraj/jezyk) i pobierz ich etykiety
             value_qids = set()
             for qid, ent in wd_results.items():
                 claims = ent.get("claims", {})
@@ -796,7 +821,6 @@ def wzbogac(rows, client_pl, client_en=None, client_wd=None, incremental=False):
                         "pl": (lbls.get("pl", {}) or {}).get("value", ""),
                         "en": (lbls.get("en", {}) or {}).get("value", ""),
                     }
-            # Przypisz pochodzenie
             for r in need_wd:
                 qid = name_to_qid.get(r["imie"])
                 if qid and qid in wd_results:
@@ -804,7 +828,9 @@ def wzbogac(rows, client_pl, client_en=None, client_wd=None, incremental=False):
                     origin = origin_from_wikidata_claims(claims, value_labels)
                     if origin:
                         r["pochodzenie"] = origin
+                        r["_zrodlo"] = "WD"
                         print(f"    WD: {r['imie']} -> {r['pochodzenie']}")
+            log_stats(rows, "WD", before)
 
     if incremental:
         rows = kept + rows
@@ -929,20 +955,23 @@ def main():
                 incremental=args.incremental)
     else:
         print("[3/4] Pomijam PL Wikipedie (--skip-pl) …")
-        # Tylko EN/WD dla imion bez pochodzenia
         if needs_en or needs_wd:
             all_rows = do_m + do_z
             need = [r for r in all_rows if not r.get("pochodzenie")]
             if need and needs_en:
+                before = {"cat": sum(1 for r in all_rows if r.get("pochodzenie"))}
                 print(f"  EN Wikipedia: {len(need)} imion …")
                 en_cache = check_en_wikipedia([r["imie"] for r in need], client_en)
                 for r in need:
                     en = en_cache.get(r["imie"], {})
                     if en.get("is_name") and en.get("origin"):
                         r["pochodzenie"] = en["origin"]
+                        r["_zrodlo"] = "EN"
                         print(f"    EN: {r['imie']} -> {r['pochodzenie']}")
+                log_stats(all_rows, "EN", before)
             need = [r for r in all_rows if not r.get("pochodzenie")]
             if need and needs_wd:
+                before = {"cat": sum(1 for r in all_rows if r.get("pochodzenie"))}
                 print(f"  Wikidane: {len(need)} imion …")
                 wd_results = {}
                 found_qids = []
@@ -958,7 +987,6 @@ def main():
                     entities = get_wikidata_entities(batch, client_wd)
                     for qid, ent in entities.items():
                         wd_results[qid] = ent
-                # Pobierz etykiety dla wartosci claimow
                 value_qids = set()
                 for qid, ent in wd_results.items():
                     claims = ent.get("claims", {})
@@ -987,11 +1015,20 @@ def main():
                         origin = origin_from_wikidata_claims(claims, value_labels)
                         if origin:
                             r["pochodzenie"] = origin
+                            r["_zrodlo"] = "WD"
                             print(f"    WD: {r['imie']} -> {r['pochodzenie']}")
+                log_stats(all_rows, "WD", before)
+
+    print("\n  Podsumowanie kategoryzacji:")
+    log_stats(meskie, "MĘSKIE")
+    log_stats(zenskie, "ŻEŃSKIE")
+    all_rows = meskie + zenskie
+    log_stats(all_rows, "ŁĄCZNIE")
 
     for r in meskie + zenskie:
         r.setdefault("pochodzenie", "")
         r.setdefault("opis_html", "")
+        r.pop("_zrodlo", None)
 
     print("[4/4] Zapisuje pliki …")
     zapisz(meskie, "dataset_meskie")
