@@ -88,6 +88,9 @@
   @media (prefers-reduced-motion:reduce){h1 .mark{animation:none}}
   :root[data-theme="dark"] h1 .mark,:root:not([data-theme="light"]) h1 .mark{color:#ff7ac4}
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) h1 .mark{color:#ff7ac4}}
+  .imie-blue{color:#1a7ac4}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .imie-blue{color:#5bcefa}}
+  :root[data-theme="dark"] .imie-blue{color:#5bcefa}
   .lede{font-size:clamp(16px,1.8vw,18.5px);color:var(--muted);margin:32px 0 0;max-width:620px}
 
   .controls{display:flex;flex-wrap:wrap;gap:20px 30px;align-items:flex-end;margin:42px 0 0}
@@ -197,7 +200,7 @@
     </div>
 
     <header class="hero">
-      <h1>Znajdźmy imię,<br>które jest <span class="mark">Twoje</span>.</h1>
+      <h1>Znajdźmy <span class="imie-blue">imię</span>,<br>które jest <span class="mark">Twoje</span>.</h1>
       <p class="lede">Prawdziwe polskie imiona z rejestru PESEL przeglądaj po rodzaju, długości i pochodzeniu.
         Bez kont, bez śledzenia, w swoim tempie.<br />
         Nie ma złych wyborów - jest tylko Twój.</p>
@@ -272,7 +275,7 @@
 
     <footer>
       <span>dane: rejestr PESEL (dane.gov.pl) · opisy: polska Wikipedia (CC BY-SA)</span>
-      <span>Nazwozbiór zrobiony z troską, ale bez ciasteczek</span>
+      <span>Nazwozbiór zrobiony z troską, ale bez ciasteczek · <a href="dostepnosc.html">dostępność</a></span>
     </footer>
   </div>
 
@@ -502,7 +505,8 @@
     useVal.textContent=mn&&mx?mn+"–"+nf(mx):mn?"od "+nf(mn):mx?"do "+nf(mx):"dowolnie";
     render();
   }
-  useMin.addEventListener("input",syncUse);useMax.addEventListener("input",syncUse);
+   useMin.addEventListener("change",syncUse);useMin.addEventListener("input",syncUse);
+   useMax.addEventListener("change",syncUse);useMax.addEventListener("input",syncUse);
   originSel.addEventListener("change",function(){state.origin=this.value;displayAll=false;page=0;render();});
   var tt;searchEl.addEventListener("input",function(){clearTimeout(tt);tt=setTimeout(function(){state.q=searchEl.value;displayAll=false;page=0;render();},140);});
   headEl.addEventListener("click",function(e){
