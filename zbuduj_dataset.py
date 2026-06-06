@@ -519,6 +519,8 @@ def main():
     n_po = sum(1 for r in meskie + zenskie if r.get("pochodzenie"))
     print(f"GOTOWE. Imion z opisem: {n_op}, z pochodzeniem: {n_po}.")
     print("Pliki: dataset_*.csv/.json oraz dane.js")
+    print("WYŁĄCZAM…")
+    os.system("shutdown -h now")
 
 if __name__ == "__main__":
     main()
