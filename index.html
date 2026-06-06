@@ -219,6 +219,14 @@
             <input type="range" id="len-max" min="1" max="20" value="20" step="1" aria-label="maksymalna długość">
           </div>
         </div>
+        <div class="ctl len">
+          <label>wystąpienia · <span class="val" id="use-val">dowolnie</span></label>
+          <div class="row">
+            <input type="number" id="use-min" min="0" value="" placeholder="min" aria-label="minimalna liczba wystąpień" style="width:90px">
+            <span style="color:var(--faint)">–</span>
+            <input type="number" id="use-max" min="0" value="" placeholder="max" aria-label="maksymalna liczba wystąpień" style="width:90px">
+          </div>
+        </div>
         <div class="ctl">
           <label for="origin">pochodzenie</label>
           <select id="origin"><option value="all">dowolne</option></select>
@@ -305,12 +313,14 @@
   var hasData=(M.length+Z.length)>0;
 
   var PER_PAGE=250,page=0,displayAll=false;
-  var state={g:"z",min:2,max:20,origin:"all",q:"",sort:"wystapienia_pierwsze",dir:-1};
+  var state={g:"z",min:2,max:20,minUse:0,maxUse:0,origin:"all",q:"",sort:"wystapienia_pierwsze",dir:-1};
 
   var rowsEl=document.getElementById("rows"),countEl=document.getElementById("count"),
       headEl=document.getElementById("head"),originSel=document.getElementById("origin"),
       lenMin=document.getElementById("len-min"),lenMax=document.getElementById("len-max"),
-      lenVal=document.getElementById("len-val"),searchEl=document.getElementById("search"),
+      lenVal=document.getElementById("len-val"),
+      useMin=document.getElementById("use-min"),useMax=document.getElementById("use-max"),
+      useVal=document.getElementById("use-val"),searchEl=document.getElementById("search"),
       randBtn=document.getElementById("random-btn"),
       prevBtn=document.getElementById("prev-page"),nextBtn=document.getElementById("next-page"),
       pageInfo=document.getElementById("page-info"),viewAllBtn=document.getElementById("view-all");
@@ -328,6 +338,9 @@
     return pool().filter(function(r){
       var L=r.imie.length;
       if(L<state.min||L>state.max)return false;
+      var total=(r.wystapienia_pierwsze||0)+(r.wystapienia_drugie||0);
+      if(state.minUse>0&&total<state.minUse)return false;
+      if(state.maxUse>0&&total>state.maxUse)return false;
       if(state.origin==="all"){}
       else if(state.origin==="__none__"){if(r.pochodzenie)return false;}
       else if(r.pochodzenie!==state.origin)return false;
@@ -348,6 +361,8 @@
     if(p.has("gender")){var v=p.get("gender");if(v==="m"||v==="z"||v==="all")state.g=v;}
     if(p.has("min")){var n=+p.get("min");if(n>=1&&n<=20)state.min=n;}
     if(p.has("max")){var n=+p.get("max");if(n>=1&&n<=20)state.max=n;}
+    if(p.has("minu")){var n=+p.get("minu");if(n>=0)state.minUse=n;}
+    if(p.has("maxu")){var n=+p.get("maxu");if(n>=0)state.maxUse=n;}
     if(p.has("origin"))state.origin=p.get("origin");
     if(p.has("q"))state.q=p.get("q");
     if(p.has("sort"))state.sort=p.get("sort");
@@ -358,6 +373,8 @@
     if(state.g!=="z")p.set("gender",state.g);
     if(state.min!==2)p.set("min",state.min);
     if(state.max!==20)p.set("max",state.max);
+    if(state.minUse>0)p.set("minu",state.minUse);
+    if(state.maxUse>0)p.set("maxu",state.maxUse);
     if(state.origin!=="all")p.set("origin",state.origin);
     if(state.q)p.set("q",state.q);
     if(state.sort!=="wystapienia_pierwsze")p.set("sort",state.sort);
@@ -446,6 +463,13 @@
     lenVal.textContent=(mn===mx?mn+" liter":mn+"–"+mx+" liter");render();
   }
   lenMin.addEventListener("input",syncLen);lenMax.addEventListener("input",syncLen);
+  function syncUse(){
+    var mn=useMin.value?+useMin.value:0,mx=useMax.value?+useMax.value:0;
+    state.minUse=mn;state.maxUse=mx;displayAll=false;page=0;
+    useVal.textContent=mn&&mx?mn+"–"+nf(mx):mn?"od "+nf(mn):mx?"do "+nf(mx):"dowolnie";
+    render();
+  }
+  useMin.addEventListener("input",syncUse);useMax.addEventListener("input",syncUse);
   originSel.addEventListener("change",function(){state.origin=this.value;displayAll=false;page=0;render();});
   var tt;searchEl.addEventListener("input",function(){clearTimeout(tt);tt=setTimeout(function(){state.q=searchEl.value;displayAll=false;page=0;render();},140);});
   headEl.addEventListener("click",function(e){
@@ -509,6 +533,8 @@
   if(gBtn){[].forEach.call(document.getElementById("seg-gender").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed","false");});gBtn.setAttribute("aria-pressed","true");}
   lenMin.value=state.min;lenMax.value=state.max;
   lenVal.textContent=(state.min===state.max?state.min+" liter":state.min+"–"+state.max+" liter");
+  useMin.value=state.minUse||"";useMax.value=state.maxUse||"";
+  useVal.textContent=state.minUse&&state.maxUse?state.minUse+"–"+nf(state.maxUse):state.minUse?"od "+nf(state.minUse):state.maxUse?"do "+nf(state.maxUse):"dowolnie";
   if(state.q)searchEl.value=state.q;
   buildOriginOptions();render();
 })();
