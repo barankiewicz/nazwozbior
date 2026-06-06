@@ -3,34 +3,17 @@
 """
 zbuduj_dataset.py
 =================
-Buduje dane dla strony "Znajdź swoje imię".
+Buduje dane dla "Nazwozbiór" — przeglądarki imion polskich.
 
 Co robi:
-  1. Pobiera z dane.gov.pl (dataset 1667) NAJNOWSZE listy imion z rejestru PESEL:
-       - imiona meskie:  pierwsze + drugie
-       - imiona zenskie: pierwsze + drugie
-  2. Skleja je w dwa datasety:
-       meskie / zenskie  ->  kolumny: imie, wystapienia_pierwsze, wystapienia_drugie
-  3. Wzbogaca KAZDE imie o dane z polskiej Wikipedii:
-       - pochodzenie (wykryte z tekstu, np. "greckie", "lacinskie", "slowianskie")
-       - opis = PIERWSZY AKAPIT artykulu, z DZIALAJACYMI linkami (przepisanymi na pelne URL-e)
-  4. Zapisuje wynik:
-       - dataset_meskie.csv / .json
-       - dataset_zenskie.csv / .json
-       - dane.js   <-- tego uzywa strona (index.html)
+  1. Pobiera z dane.gov.pl (dataset 1667) NAJNOWSZE listy imion z rejestru PESEL
+  2. Skleja je w datasety (imie, wystapienia_pierwsze, wystapienia_drugie)
+  3. Wzbogaca imiona o pochodzenie + opis z polskiej Wikipedii
+  4. Zapisuje dataset_*.csv/.json oraz dane.js
 
 Uruchomienie:
     pip install requests openpyxl
     python3 zbuduj_dataset.py
-
-Wskazowki:
-  - Skrypt jest WZNAWIALNY. Postep zapisuje w folderze .cache_wiki/.
-    Mozesz go przerwac (Ctrl+C) i uruchomic ponownie - dokonczy od miejsca przerwania.
-  - Wzbogacenie WSZYSTKICH imion (dziesiatki tysiecy) trwa dlugo. Wiekszosc bardzo
-    rzadkich imion (literowki, transliteracje) nie ma artykulu na Wikipedii - to normalne,
-    takie imiona zostana w danych bez opisu, tylko z liczba wystapien.
-  - Chcesz szybki test? Ustaw nizej LIMIT_NA_PLEC = 300 (wzbogaci tylko 300 najpopularniejszych
-    imion kazdej plci), albo uruchom:  python3 zbuduj_dataset.py --limit 300
 """
 
 import os, re, csv, json, time, html, argparse, sys
@@ -45,30 +28,31 @@ try:
 except ImportError:
     sys.exit("Brak biblioteki 'openpyxl'. Zainstaluj: pip install openpyxl")
 
-# ------------------------------------------------------------------ KONFIG ---
-DATASET_ID      = 1667
-LIMIT_NA_PLEC   = None      # None = wszystkie imiona; np. 300 = tylko 300 najpopularniejszych kazdej plci
-WIKI_LANG       = "pl"
-RAW_DIR         = "raw_pesel"
-CACHE_DIR       = ".cache_wiki"
-USER_AGENT      = "PoImieniu/1.0 (https://github.com/barankiewicz; barankiewicz@protonmail.ch)"
-MAXLAG          = 5             # zalecany przez MediaWiki dla skryptow
-RATE_LIMIT_REQ  = 180           # max zapytan na okno czasowe (90% oficjalnego limitu 200)
-RATE_LIMIT_WIN  = 60            # okno czasowe w sekundach
-MAX_RETRIES     = 5             # maksymalna liczba powtorzen przy bledach HTTP/connection
-BATCH_SIZE      = 50            # ile tytulow na jedno zapytanie wsadowe (faza 1)
-API             = f"https://{WIKI_LANG}.wikipedia.org/w/api.php"
+# ------------------------------------------------------------------- KONFIG ---
 
-# Normalizacja pochodzenia: fragment slowa -> etykieta kanoniczna (do dropdownu)
+DATASET_ID     = 1667
+LIMIT_NA_PLEC  = None
+WIKI_LANG      = "pl"
+RAW_DIR        = "raw_pesel"
+CACHE_DIR      = ".cache_wiki"
+USER_AGENT     = ("Nazwozbior/1.0 (https://github.com/barankiewicz; "
+                  "barankiewicz@protonmail.ch)")
+MAXLAG         = 5
+RATE_LIMIT_REQ = 180
+RATE_LIMIT_WIN = 60
+MAX_RETRIES    = 5
+BATCH_SIZE      = 20
+API            = f"https://{WIKI_LANG}.wikipedia.org/w/api.php"
+
 ORIGIN_MAP = [
     ("starogreck", "greckie"), ("grec", "greckie"),
     ("lacin", "lacinskie"), ("łaci", "lacinskie"),
-    ("starogerm", "germanskie"), ("german", "germanskie"),
+    ("starogerm", "germanskie"), ("german", "germanskie"), ("germań", "germanskie"),
     ("starodolnoniem", "germanskie"), ("staronordyck", "skandynawskie"),
     ("skandyna", "skandynawskie"), ("nordyck", "skandynawskie"),
     ("slowia", "slowianskie"), ("słowia", "slowianskie"),
     ("staropol", "staropolskie"),
-    ("hebr", "hebrajskie"), ("aramej", "aramejskie"),
+    ("hebr", "hebrajskie"), ("aramej", "aramejskie"), ("semick", "hebrajskie"), ("biblij", "hebrajskie"),
     ("celt", "celtyckie"), ("arab", "arabskie"), ("pers", "perskie"),
     ("litew", "litewskie"), ("egip", "egipskie"), ("sanskry", "sanskryckie"),
     ("ind", "indyjskie"), ("turec", "tureckie"), ("baskij", "baskijskie"),
@@ -79,9 +63,29 @@ ORIGIN_MAP = [
     ("wegier", "wegierskie"), ("węgier", "wegierskie"),
     ("fin", "finskie"), ("etiop", "etiopskie"), ("fenick", "fenickie"),
     ("akadyj", "akadyjskie"), ("sumeryj", "sumeryjskie"), ("egipsk", "egipskie"),
+    ("iber", "iberyjskie"), ("etrur", "etruskie"), ("iber", "iberyjskie"),
+    ("amer", "amerykanskie"), ("japo", "japonskie"), ("chin", "chinskie"),
+    ("mongol", "mongolskie"), ("polinezyj", "polinezyjskie"),
+    ("persk", "perskie"), ("hindi", "indyjskie"), ("urdu", "indyjskie"),
+    ("staropers", "perskie"), ("prowans", "prowansalskie"),
+    ("holend", "holenderskie"), ("niderland", "holenderskie"),
+    ("burgund", "burgundzkie"), ("bizantyj", "bizantyjskie"),
+    ("starobułgar", "slowianskie"), ("st.bułg", "slowianskie"),
+    ("praslow", "slowianskie"), ("prasłow", "slowianskie"),
+    ("palestyń", "palestynskie"), ("z hebr", "hebrajskie"),
 ]
 
-# -------------------------------------------------------- RATE LIMIT / API KLIENT
+# Wzorce do wykrywania pochodzenia z pierwszego zdania
+ORIGIN_PATTERNS = [
+    re.compile(r'pochodzeni[ae]\s+([a-ząćęłńóśźż]{3,})'),
+    re.compile(r'wywodzi\s+si[ęe]\s+z\s+(j[ęe]zyka\s+)?([a-ząćęłńóśźż]{3,})'),
+    re.compile(r'pochodzi\s+z\s+(j[ęe]zyka\s+)?([a-ząćęłńóśźż]{3,})'),
+    re.compile(r'im[ięe][\s,][^.]+?\b([a-ząćęłńóśźż]*(?:greck|łaci|german|słowia|hebr|arab|celt|slowia|staropol|francus|angiel|włos|rosyj|ukrai|wegier|fińsk|pers|turec|indyj|egip|skandyn)[a-ząćęłńóśźż]*)\b'),
+]
+
+
+
+# ---------------------------------------------------- RATE LIMIT / API KLIENT
 
 class RateLimiter:
     def __init__(self, max_requests, window_seconds):
@@ -135,9 +139,9 @@ class WikiAPIClient:
                 sleep = min(30, 2 ** attempt)
                 print(f"    blad polaczenia: {e}, proba {attempt+1}/{self.max_retries} po {sleep}s")
                 time.sleep(sleep)
-        raise Exception(f"Przekroczono maksymalna liczbe prob ({self.max_retries}) dla: {params.get('page', params.get('titles', '?'))}")
+        raise Exception(f"Przekroczono max prob ({self.max_retries}) dla: {params.get('page', params.get('titles', '?'))}")
 
-# ---------------------------------------------------------------- POBIERANIE -
+# ---------------------------------------------------------------- POBIERANIE
 
 def titlecase_pl(s):
     s = s.strip()
@@ -147,15 +151,13 @@ def titlecase_pl(s):
     return ''.join(out)
 
 def pobierz_zasoby():
-    """Zwraca liste zasobow datasetu z API dane.gov.pl."""
     url = f"https://api.dane.gov.pl/1.4/datasets/{DATASET_ID}/resources?lang=pl&page=1&per_page=100"
     r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=60)
     r.raise_for_status()
     return r.json().get("data", [])
 
 def wybierz_najnowsze(zasoby):
-    """Wybiera najnowszy plik (xlsx) dla 4 kategorii."""
-    wybor = {}  # klucz -> (data_date, url, title)
+    wybor = {}
     for z in zasoby:
         a = z.get("attributes", {})
         title = (a.get("title") or "").lower()
@@ -164,7 +166,8 @@ def wybierz_najnowsze(zasoby):
         date = a.get("data_date") or ""
         if fmt != "xlsx" or not url:
             continue
-        plec = "m" if ("męsk" in title or "mesk" in title) else ("z" if ("żeńsk" in title or "zensk" in title) else None)
+        plec = "m" if ("męsk" in title or "mesk" in title) \
+                else ("z" if ("żeńsk" in title or "zensk" in title) else None)
         if plec is None:
             continue
         kolejnosc = "drugie" if "drugie" in title else ("pierwsze" if "pierwsze" in title else None)
@@ -211,15 +214,12 @@ def zbuduj(first_path, second_path):
     second = wczytaj_liczby(second_path)
     rows = []
     for n in (set(first) | set(second)):
-        rows.append({
-            "imie": n,
-            "wystapienia_pierwsze": first.get(n, 0),
-            "wystapienia_drugie": second.get(n, 0),
-        })
+        rows.append({"imie": n, "wystapienia_pierwsze": first.get(n, 0),
+                     "wystapienia_drugie": second.get(n, 0)})
     rows.sort(key=lambda r: -(r["wystapienia_pierwsze"] + r["wystapienia_drugie"]))
     return rows
 
-# ------------------------------------------------------------------- WIKIPEDIA
+# ------------------------------------------------------------ CACHE POMOCE
 
 def load_cache(name):
     p = os.path.join(CACHE_DIR, name)
@@ -232,83 +232,149 @@ def load_cache(name):
 
 def save_cache(name, data):
     os.makedirs(CACHE_DIR, exist_ok=True)
-    json.dump(data, open(os.path.join(CACHE_DIR, name), "w", encoding="utf-8"), ensure_ascii=False)
+    json.dump(data, open(os.path.join(CACHE_DIR, name), "w", encoding="utf-8"),
+              ensure_ascii=False)
 
-def wykryj_pochodzenie(plain):
-    """Z tekstu wyciaga pochodzenie i normalizuje do etykiety."""
-    if not plain:
-        return ""
-    m = re.search(r'pochodzeni[ae]\s+([a-ząćęłńóśźż]+)', plain.lower())
-    token = m.group(1) if m else ""
-    if not token:
-        # czasem: "imie ... greckie" bez slowa "pochodzenia"
-        m2 = re.search(r'imi[eę]\b[^.]{0,40}?\b([a-ząćęłńóśźż]*(?:greck|łaci|german|słowia|hebr)[a-ząćęłńóśźż]*)', plain.lower())
-        token = m2.group(1) if m2 else ""
-    if not token:
-        return ""
-    for frag, label in ORIGIN_MAP:
-        if frag in token:
-            return label
-    return ""
+# ----------------------------------------------------- POCHODZENIE Z TEKSTU
+
+def wykryj_pochodzenie(plain, categories=None):
+    """Wykrywa pochodzenie z tekstu intru + kategorii artykulu."""
+    origin = ""
+    if plain:
+        for pat in ORIGIN_PATTERNS:
+            m = pat.search(plain.lower())
+            if m:
+                token = m.group(m.lastindex)
+                if token in ("języka", "język", "jezyka", "jezyk"):
+                    continue
+                for frag, label in ORIGIN_MAP:
+                    if frag in token:
+                        origin = label
+                        break
+                if origin:
+                    break
+    if not origin and categories:
+        for cat in categories:
+            c = cat.replace("Kategoria:", "").replace("|", "").strip()
+            # "Imiona męskie pochodzenia hebrajskiego" -> wyciągnij "hebrajskiego"
+            m = re.search(r'pochodzenia\s+([a-ząćęłńóśźż]+)', c.lower())
+            if m:
+                token = m.group(1)
+                for frag, label in ORIGIN_MAP:
+                    if frag in token:
+                        origin = label
+                        break
+                if origin:
+                    break
+            for frag, label in ORIGIN_MAP:
+                if frag in c.lower():
+                    origin = label
+                    break
+            if origin:
+                break
+    return origin
+
+# ----------------------------------------------------------- FAZA 1 — ISTNIENIE
 
 def faza1_istnienie(names, client):
-    """Wsadowo: sprawdza istnienie artykulu + pobiera plaintext intro (do pochodzenia)."""
+    """Wsadowo: sprawdza czy artykul istnieje + pobiera plaintext + kategorie.
+
+    Jesli artykul okazuje sie strona ujednoznaczniajaca, probuje '(imię)'.
+    """
     cache = load_cache("phase1.json")
-    todo = [n for n in names if n not in cache]
-    print(f"  Faza 1 (istnienie/pochodzenie): {len(todo)} nowych z {len(names)} (w cache: {len(cache)})")
-    for i in range(0, len(todo), BATCH_SIZE):
-        batch = todo[i:i+BATCH_SIZE]
+
+    def _is_disambig(info):
+        return any("ujednoznaczn" in c.lower() for c in info.get("cats", []))
+
+    def _fetch(raw_batch):
         params = {
-            "action": "query", "format": "json", "prop": "extracts|pageprops",
-            "exintro": 1, "explaintext": 1, "redirects": 1, "formatversion": 2,
-            "titles": "|".join(batch),
+            "action": "query", "format": "json",
+            "prop": "extracts|categories",
+            "exintro": 1, "explaintext": 1,
+            "exlimit": "max",
+            "cllimit": "max", "clshow": "!hidden",
+            "redirects": 1, "formatversion": 2,
+            "titles": "|".join(raw_batch),
         }
-        try:
-            data = client.get(params)
-        except Exception as e:
-            print(f"    blad batch ({batch[0]}...{batch[-1]}): {e}")
-            for n in batch:
-                cache[n] = {"exists": False, "plain": "", "disambig": False}
-            continue
+        data = client.get(params)
+        pages = data.get("query", {}).get("pages", [])
         ret = {}
-        for pg in data.get("query", {}).get("pages", []):
+        for pg in pages:
             title = pg.get("title", "")
             missing = pg.get("missing", False)
             extract = pg.get("extract", "") or ""
-            disambig = "disambiguation" in (pg.get("pageprops") or {})
-            ret[title] = {"exists": (not missing), "plain": extract, "disambig": disambig}
+            cats = [c["title"] for c in pg.get("categories", [])]
+            ret[title] = {"exists": (not missing), "plain": extract, "cats": cats}
         norm = {}
-        for n in batch:
-            norm[n] = n
         for rd in data.get("query", {}).get("redirects", []):
             norm[rd["from"]] = rd["to"]
         for nm in data.get("query", {}).get("normalized", []):
             norm[nm["from"]] = nm["to"]
+        return ret, norm
+
+    todo = [n for n in names if n not in cache]
+    print(f"  Faza 1 (istnienie/kategorie): {len(todo)} nowych z {len(names)} "
+          f"(w cache: {len(cache)})")
+
+    for i in range(0, len(todo), BATCH_SIZE):
+        batch = todo[i:i+BATCH_SIZE]
+        try:
+            ret, norm = _fetch(batch)
+        except Exception as e:
+            print(f"    blad batch ({batch[0]}...{batch[-1]}): {e}")
+            for n in batch:
+                cache[n] = {"exists": False, "plain": "", "cats": []}
+            continue
+
+        disambig_names = []
         for n in batch:
             t = norm.get(n, n)
-            info = ret.get(t) or ret.get(n) or {"exists": False, "plain": "", "disambig": False}
+            info = ret.get(t) or ret.get(n) or {"exists": False, "plain": "", "cats": []}
+            info["page_title"] = t
             cache[n] = info
+            if info.get("exists") and _is_disambig(info):
+                disambig_names.append(n)
+
+        # retry disambiguated names with "(imię)" suffix
+        if disambig_names:
+            suffixed = [f"{n} (imi\u0119)" for n in disambig_names]
+            try:
+                ret2, norm2 = _fetch(suffixed)
+            except Exception as e:
+                print(f"    blad retry disambig: {e}")
+                ret2, norm2 = {}, {}
+            for n, s in zip(disambig_names, suffixed):
+                t = norm2.get(s, s)
+                info2 = ret2.get(t) or ret2.get(s) or {"exists": False, "plain": "", "cats": []}
+                if info2.get("exists"):
+                    info2["page_title"] = t
+                    cache[n] = info2
+
         if (i // BATCH_SIZE) % 5 == 0:
             save_cache("phase1.json", cache)
-            print(f"    ...{min(i+BATCH_SIZE,len(todo))}/{len(todo)}")
+            print(f"    ...{min(i+BATCH_SIZE, len(todo))}/{len(todo)}")
     save_cache("phase1.json", cache)
+
+    # Oznacz disambig dla tych ktore nadal nia sa (nie mialy "(imię)" wariantu)
+    for n in cache:
+        if cache[n].get("exists") and _is_disambig(cache[n]):
+            cache[n]["disambig"] = True
+        else:
+            cache[n]["disambig"] = False
     return cache
 
-# czyszczenie pierwszego akapitu HTML
+# ----------------------------------------------------------- FAZA 2 — OPIS HTML
+
 RE_SUP   = re.compile(r'<sup\b[^>]*>.*?</sup>', re.S)
 RE_STYLE = re.compile(r'<style\b[^>]*>.*?</style>', re.S)
 RE_SPANO = re.compile(r'<span\b[^>]*>')
 RE_SPANC = re.compile(r'</span>')
-RE_TAGS_KEEP = None
 
 def wyczysc_akapit(html_text):
-    """Zostawia pierwszy sensowny <p>, przepisuje linki na pelne URL-e, czysci smieci."""
     if not html_text:
         return ""
-    # usun komentarze
     html_text = re.sub(r'<!--.*?-->', '', html_text, flags=re.S)
     html_text = RE_STYLE.sub('', html_text)
-    # znajdz wszystkie <p>...</p> i wybierz pierwszy z odpowiednia iloscia tekstu
     paragraphs = re.findall(r'<p\b[^>]*>(.*?)</p>', html_text, flags=re.S)
     chosen = ""
     for p in paragraphs:
@@ -322,44 +388,40 @@ def wyczysc_akapit(html_text):
     if not chosen:
         return ""
     s = chosen
-    s = RE_SUP.sub('', s)                       # przypisy [1]
+    s = RE_SUP.sub('', s)
     s = re.sub(r'<span\b[^>]*class="[^"]*mw-editsection[^"]*".*?</span>', '', s, flags=re.S)
-    # przepisz linki: /wiki/... -> pelny URL, otwieraj w nowej karcie
     def fix_link(m):
         href = m.group(1)
         if href.startswith('/wiki/'):
-            full = f"https://{WIKI_LANG}.wikipedia.org" + href
-            return f'<a href="{full}" target="_blank" rel="noopener noreferrer">'
+            return f'<a href="https://{WIKI_LANG}.wikipedia.org{href}" target="_blank" rel="noopener noreferrer">'
         if href.startswith('http'):
             return f'<a href="{href}" target="_blank" rel="noopener noreferrer">'
-        # czerwone linki / edycja -> usun link, zostaw tekst
         return '<a>'
     s = re.sub(r'<a\b[^>]*?href="([^"]*)"[^>]*>', fix_link, s)
-    s = re.sub(r'<a>(.*?)</a>', r'\1', s, flags=re.S)   # puste <a> -> sam tekst
-    # usun spany (zostaw tresc), usun pozostale atrybuty z tagow inline ktore zostawiamy
+    s = re.sub(r'<a>(.*?)</a>', r'\1', s, flags=re.S)
     s = RE_SPANO.sub('', s); s = RE_SPANC.sub('', s)
     s = re.sub(r'<(b|i|em|strong)\b[^>]*>', r'<\1>', s)
-    # wytnij wszystkie tagi POZA dozwolonymi
     s = re.sub(r'</?(?!a\b|b\b|i\b|em\b|strong\b)[a-zA-Z][^>]*>', '', s)
     s = re.sub(r'\s+', ' ', s).strip()
     return s
 
 def faza2_opis(names, phase1, client):
-    """Dla imion ktore maja artykul: pobiera pierwszy akapit z dzialajacymi linkami."""
+    """Dla imion z artykulem: pobiera pierwszy akapit HTML."""
     cache = load_cache("phase2.json")
-    kandydaci = [n for n in names if phase1.get(n, {}).get("exists") and n not in cache]
-    print(f"  Faza 2 (opis+linki): {len(kandydaci)} do pobrania (w cache: {len(cache)})")
+    kandydaci = [(n, phase1.get(n, {}).get("page_title", n))
+                 for n in names if phase1.get(n, {}).get("exists") and n not in cache]
+    print(f"  Faza 2 (opis HTML): {len(kandydaci)} do pobrania (w cache: {len(cache)})")
     done = 0
-    for n in kandydaci:
+    for n, page_title in kandydaci:
         params = {
             "action": "parse", "format": "json", "prop": "text",
-            "section": 0, "redirects": 1, "formatversion": 2, "page": n,
+            "section": 0, "redirects": 1, "formatversion": 2, "page": page_title,
         }
         try:
             data = client.get(params)
             text = data.get("parse", {}).get("text", "")
             cache[n] = {"opis_html": wyczysc_akapit(text)}
-        except Exception as e:
+        except Exception:
             cache[n] = {"opis_html": ""}
         done += 1
         if done % 25 == 0:
@@ -375,11 +437,15 @@ def wzbogac(rows, client):
     for r in rows:
         n = r["imie"]
         p1 = phase1.get(n, {})
-        r["pochodzenie"] = wykryj_pochodzenie(p1.get("plain", "")) if p1.get("exists") else ""
-        r["opis_html"]   = phase2.get(n, {}).get("opis_html", "")
+        if p1.get("exists") and not p1.get("disambig"):
+            r["pochodzenie"] = wykryj_pochodzenie(p1.get("plain", ""),
+                                                  p1.get("cats", []))
+        else:
+            r["pochodzenie"] = ""
+        r["opis_html"] = phase2.get(n, {}).get("opis_html", "")
     return rows
 
-# ----------------------------------------------------------------- ZAPIS -----
+# ------------------------------------------------------------------- ZAPIS
 
 def zapisz(rows, base):
     cols = ["imie", "wystapienia_pierwsze", "wystapienia_drugie", "pochodzenie", "opis_html"]
@@ -392,27 +458,27 @@ def zapisz(rows, base):
 
 def zapisz_dane_js(meskie, zenskie):
     with open("dane.js", "w", encoding="utf-8") as f:
-        f.write("// Wygenerowane przez zbuduj_dataset.py - dane dla strony.\n")
+        f.write("// Wygenerowane przez zbuduj_dataset.py — dane dla strony.\n")
         f.write("window.DANE_MESKIE = ")
         json.dump(meskie, f, ensure_ascii=False)
         f.write(";\n window.DANE_ZENSKIE = ")
         json.dump(zenskie, f, ensure_ascii=False)
         f.write(";\n")
 
-# ------------------------------------------------------------------- MAIN ----
+# ------------------------------------------------------------------- MAIN
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=LIMIT_NA_PLEC,
-                    help="Wzbogac tylko N najpopularniejszych imion kazdej plci (szybki test).")
+                    help="Wzbogac tylko N najpopularniejszych imion kazdej plci.")
     args = ap.parse_args()
-
     os.makedirs(RAW_DIR, exist_ok=True)
-    print("[1/4] Pobieram liste zasobow z dane.gov.pl ...")
+
+    print("[1/4] Pobieram liste zasobow z dane.gov.pl …")
     zasoby = pobierz_zasoby()
     wybor = wybierz_najnowsze(zasoby)
     if len(wybor) < 4:
-        sys.exit(f"Nie znaleziono wszystkich 4 plikow. Znaleziono: {list(wybor)}")
+        sys.exit(f"Nie znaleziono 4 plikow. Znaleziono: {list(wybor)}")
     pliki = {}
     for key, (date, url, title) in wybor.items():
         dest = os.path.join(RAW_DIR, key + ".xlsx")
@@ -420,13 +486,13 @@ def main():
         sciagnij(url, dest)
         pliki[key] = dest
 
-    print("[2/4] Buduje datasety ...")
+    print("[2/4] Buduje datasety …")
     meskie  = zbuduj(pliki["m_pierwsze"], pliki["m_drugie"])
     zenskie = zbuduj(pliki["z_pierwsze"], pliki["z_drugie"])
     print(f"      meskie: {len(meskie)} imion, zenskie: {len(zenskie)} imion")
 
     if args.limit:
-        print(f"      LIMIT: wzbogacam tylko {args.limit} najpopularniejszych kazdej plci")
+        print(f"      LIMIT: tylko {args.limit} najpopularniejszych kazdej plci")
         do_m, do_z = meskie[:args.limit], zenskie[:args.limit]
     else:
         do_m, do_z = meskie, zenskie
@@ -436,22 +502,22 @@ def main():
     ratelimiter = RateLimiter(RATE_LIMIT_REQ, RATE_LIMIT_WIN)
     client = WikiAPIClient(sess, ratelimiter)
 
-    print("[3/4] Wzbogacam o Wikipedie (meskie) ...")
+    print("[3/4] Wzbogacam o Wikipedie (meskie) …")
     wzbogac(do_m, client)
-    print("[3/4] Wzbogacam o Wikipedie (zenskie) ...")
+    print("[3/4] Wzbogacam o Wikipedie (zenskie) …")
     wzbogac(do_z, client)
-    # imiona poza limitem dostaja puste pola
     for r in meskie + zenskie:
         r.setdefault("pochodzenie", "")
         r.setdefault("opis_html", "")
 
-    print("[4/4] Zapisuje pliki ...")
+    print("[4/4] Zapisuje pliki …")
     zapisz(meskie, "dataset_meskie")
     zapisz(zenskie, "dataset_zenskie")
     zapisz_dane_js(meskie, zenskie)
     n_op = sum(1 for r in meskie + zenskie if r.get("opis_html"))
-    print(f"GOTOWE. Imion z opisem z Wikipedii: {n_op}. Pliki: dataset_*.csv/.json oraz dane.js")
-    print("Otworz index.html w przegladarce (dane.js musi byc w tym samym folderze).")
+    n_po = sum(1 for r in meskie + zenskie if r.get("pochodzenie"))
+    print(f"GOTOWE. Imion z opisem: {n_op}, z pochodzeniem: {n_po}.")
+    print("Pliki: dataset_*.csv/.json oraz dane.js")
 
 if __name__ == "__main__":
     main()
