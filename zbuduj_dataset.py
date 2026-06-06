@@ -38,8 +38,8 @@ CACHE_DIR      = ".cache_wiki"
 USER_AGENT     = ("Nazwozbior/1.0 (https://github.com/barankiewicz; "
                   "barankiewicz@protonmail.ch)")
 MAXLAG         = 5
-RATE_LIMIT_REQ = 180
-RATE_LIMIT_WIN = 60
+RATE_LIMIT_REQ   = 100
+RATE_LIMIT_WIN   = 60
 MAX_RETRIES    = 5
 BATCH_SIZE      = 20
 API            = f"https://{WIKI_LANG}.wikipedia.org/w/api.php"
@@ -122,8 +122,8 @@ class WikiAPIClient:
             try:
                 r = self.session.get(API, params=params, timeout=timeout)
                 if r.status_code == 429:
-                    retry = int(r.headers.get("Retry-After", 5))
-                    print(f"    429 Too Many Requests, retry po {retry}s")
+                    retry = int(r.headers.get("Retry-After", 30))
+                    print(f"    429, czekam {retry}s")
                     time.sleep(retry)
                     continue
                 if r.status_code in (502, 503, 504):
@@ -132,6 +132,7 @@ class WikiAPIClient:
                     time.sleep(retry)
                     continue
                 r.raise_for_status()
+                time.sleep(0.15)
                 return r.json()
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
                 if attempt == self.max_retries - 1:
