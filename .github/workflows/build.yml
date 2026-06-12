@@ -34,10 +34,23 @@ jobs:
         run: pip install requests openpyxl
       - name: Generuj dane
         run: python3 zbuduj_dataset.py
+      - name: Skopiuj pliki publiczne do _site/
+        # Tylko to leci na produkcję — bez .py, .md, raw_pesel, .cache_wiki itd.
+        run: |
+          mkdir -p _site/opisy
+          cp index.html dostepnosc.html kontakt.html sw.js dane.js _site/
+          cp opisy/*.js _site/opisy/
+          cp dataset_*.csv dataset_*.json _site/ 2>/dev/null || true
       - name: Przygotuj artifact dla Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: _site
+      - name: Przygotuj artifact dla FTP
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-ftp
+          path: _site
+          retention-days: 1
 
   deploy:
     needs: build
@@ -49,3 +62,39 @@ jobs:
       - name: Deploy na GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  deploy-ftp:
+    # Job uruchamia się tylko jeśli w Settings → Variables ustawiono
+    # repo variable FTP_ENABLED=true. Inaczej skip (Pages działa normalnie).
+    needs: build
+    if: ${{ vars.FTP_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ftp-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Pobierz artifact site-ftp
+        uses: actions/download-artifact@v4
+        with:
+          name: site-ftp
+          path: ./_site
+      - name: Wyślij przez FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # Folder docelowy (musi kończyć się slash). Domyślnie root.
+          server-dir: ${{ vars.FTP_SERVER_DIR || './' }}
+          local-dir: ./_site/
+          # ftp | ftps | ftps-legacy. Domyślnie ftps (TLS) — najpopularniejsze.
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          # Jeśli serwer ma niepełny/samopodpisany cert i FTPS się sypie:
+          # ustaw vars.FTP_SECURITY=loose. Inaczej domyślnie strict.
+          security: ${{ vars.FTP_SECURITY || 'strict' }}
+          port: ${{ vars.FTP_PORT || '21' }}
+          # Inkrementalna synchronizacja (tylko zmienione pliki) — działa
+          # przez plik stanu .ftp-deploy-sync-state.json zapisywany
+          # na serwerze. Pierwsza wysyłka idzie w całości.
+          state-name: .ftp-deploy-sync-state.json
+          log-level: standard
