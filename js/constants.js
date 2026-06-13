@@ -60,7 +60,6 @@ var tableBody = document.getElementById("rows");
 var countElement = document.getElementById("count");
 var headerRow = document.getElementById("head");
 var originSelect = document.getElementById("origin");
-var originCharts = document.getElementById("origin-charts");
 var lengthMin = document.getElementById("len-min");
 var lengthMax = document.getElementById("len-max");
 var lengthValue = document.getElementById("len-val");

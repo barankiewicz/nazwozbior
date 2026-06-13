@@ -160,25 +160,4 @@ function updateFacets() {
   originSelect.innerHTML = h;
   if (originSelect.querySelector('option[value="' + pv + '"]')) originSelect.value = pv;
   else { state.origin = "all"; originSelect.value = "all"; }
-  
-  // ── Renderowanie Micro-Charts dla top 5 grup pochodzenia ──
-  var chartsHtml = "";
-  var maxOriginCount = originKeys.length > 0 ? originCounts[originKeys[0]] : 0;
-  
-  originKeys.slice(0, 5).forEach(function(k) {
-    if (k === "__none__") return; // Pomijamy "nieokreślone" w mikro-wykresach
-    var count = originCounts[k];
-    var pct = Math.round((count / maxOriginCount) * 100);
-    var label = getOriginLabel(k);
-    if (label.length > 18) label = label.slice(0, 16) + "…";
-    
-    chartsHtml += '<div style="margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); cursor: pointer;" title="' + getOriginLabel(k) + ' (' + formatNumber(count) + ')" onclick="document.getElementById(\'origin\').value=\'' + k + '\'; document.getElementById(\'origin\').dispatchEvent(new Event(\'change\'));">' +
-      '<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px;">' + label + '</span>' +
-      '<div style="flex-grow: 1; margin-left: 8px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden;">' +
-        '<div style="width: ' + pct + '%; background: var(--faint); height: 100%; border-radius: 2px;"></div>' +
-      '</div>' +
-    '</div>';
-  });
-  
-  originCharts.innerHTML = chartsHtml;
 }
