@@ -48,6 +48,10 @@ MAX_RETRIES    = 5
 BATCH_SIZE      = 20
 API_PL         = "https://pl.wikipedia.org/w/api.php"
 API_EN         = "https://en.wikipedia.org/w/api.php"
+API_UK         = "https://uk.wikipedia.org/w/api.php"
+API_RU         = "https://ru.wikipedia.org/w/api.php"
+API_VI         = "https://vi.wikipedia.org/w/api.php"
+API_RMY        = "https://rmy.wikipedia.org/w/api.php"
 WD_SPARQL      = "https://query.wikidata.org/sparql"
 ZAIMKI_API     = "https://zaimki.pl/api/names"
 
@@ -1184,6 +1188,10 @@ class DatasetBuilder:
         self.session = None
         self.client_pl = None
         self.client_en = None
+        self.client_uk = None
+        self.client_ru = None
+        self.client_vi = None
+        self.client_rmy = None
         self.client_wikt_en = None
         self.client_wikt_pl = None
         self.wd_names = None
@@ -1208,6 +1216,7 @@ class DatasetBuilder:
         self._run_enrichment()
         self._inherit_origins()
         self._apply_morphology()
+        self._apply_transliteration()
         self._link_bazowe()
         self._build_niebinarne()
         self._print_final_stats()
@@ -1230,6 +1239,14 @@ class DatasetBuilder:
                         help="Pomin polska Wikipedie.")
         ap.add_argument("--skip-en", action="store_true",
                         help="Pomin angielska Wikipedie.")
+        ap.add_argument("--skip-uk", action="store_true",
+                        help="Pomin ukrainska Wikipedie.")
+        ap.add_argument("--skip-ru", action="store_true",
+                        help="Pomin rosyjska Wikipedie.")
+        ap.add_argument("--skip-vi", action="store_true",
+                        help="Pomin wietnamska Wikipedie.")
+        ap.add_argument("--skip-rmy", action="store_true",
+                        help="Pomin romska Wikipedie.")
         ap.add_argument("--skip-wd", action="store_true",
                         help="Pomin Wikidane.")
         ap.add_argument("--skip-wikt", action="store_true",
@@ -1329,6 +1346,22 @@ class DatasetBuilder:
             ratelimiter_en = RateLimiter(EN_RATE_LIMIT_REQ, EN_RATE_LIMIT_WIN)
             self.client_en = WikiAPIClient(self.session, ratelimiter_en,
                                            base_url=API_EN, maxlag=MAXLAG)
+        if not self.args.skip_uk:
+            ratelimiter_uk = RateLimiter(EN_RATE_LIMIT_REQ, EN_RATE_LIMIT_WIN)
+            self.client_uk = WikiAPIClient(self.session, ratelimiter_uk,
+                                           base_url=API_UK, maxlag=MAXLAG)
+        if not self.args.skip_ru:
+            ratelimiter_ru = RateLimiter(EN_RATE_LIMIT_REQ, EN_RATE_LIMIT_WIN)
+            self.client_ru = WikiAPIClient(self.session, ratelimiter_ru,
+                                           base_url=API_RU, maxlag=MAXLAG)
+        if not self.args.skip_vi:
+            ratelimiter_vi = RateLimiter(EN_RATE_LIMIT_REQ, EN_RATE_LIMIT_WIN)
+            self.client_vi = WikiAPIClient(self.session, ratelimiter_vi,
+                                           base_url=API_VI, maxlag=MAXLAG)
+        if not self.args.skip_rmy:
+            ratelimiter_rmy = RateLimiter(EN_RATE_LIMIT_REQ, EN_RATE_LIMIT_WIN)
+            self.client_rmy = WikiAPIClient(self.session, ratelimiter_rmy,
+                                            base_url=API_RMY, maxlag=MAXLAG)
         if not self.args.skip_wikt:
             self.client_wikt_en = WikiAPIClient(self.session, RateLimiter(EN_RATE_LIMIT_REQ, EN_RATE_LIMIT_WIN),
                                                 base_url=API_WIKT_EN, maxlag=MAXLAG)
@@ -1399,6 +1432,34 @@ class DatasetBuilder:
                 before = {"cat": sum(1 for r in rows if r.get("pochodzenie"))}
                 self._apply_enrich_wikt_pl(need)
                 log_stats(rows, "WIKT-PL", before)
+
+        if self.client_uk:
+            need = [r for r in rows if not r.get("pochodzenie")]
+            if need:
+                before = {"cat": sum(1 for r in rows if r.get("pochodzenie"))}
+                self._apply_enrich_uk(need)
+                log_stats(rows, "UK", before)
+
+        if self.client_ru:
+            need = [r for r in rows if not r.get("pochodzenie")]
+            if need:
+                before = {"cat": sum(1 for r in rows if r.get("pochodzenie"))}
+                self._apply_enrich_ru(need)
+                log_stats(rows, "RU", before)
+
+        if self.client_vi:
+            need = [r for r in rows if not r.get("pochodzenie")]
+            if need:
+                before = {"cat": sum(1 for r in rows if r.get("pochodzenie"))}
+                self._apply_enrich_vi(need)
+                log_stats(rows, "VI", before)
+
+        if self.client_rmy:
+            need = [r for r in rows if not r.get("pochodzenie")]
+            if need:
+                before = {"cat": sum(1 for r in rows if r.get("pochodzenie"))}
+                self._apply_enrich_rmy(need)
+                log_stats(rows, "RMY", before)
 
         if self.args.incremental:
             dataset.rows = kept + rows
@@ -1692,6 +1753,218 @@ class DatasetBuilder:
                 print(f"  EN {processed}/{len(need_en)}  skat={cat}/{denom} "
                       f"({cat/denom*100:.1f}%)")
 
+    def _check_foreign_wikipedia(self, names, client, lang_code, cache_name, origin_map):
+        """Generyczna metoda dla UK/RU/VI/RMY Wikipedia."""
+        cache = self.cache.load(cache_name)
+        todo = [n for n in names if n not in cache]
+        total_names = len(names)
+        print(f"  {lang_code.upper()} Wikipedia: {len(todo)} nowych z {total_names} (w cache: {len(cache)})")
+        for i in range(0, len(todo), BATCH_SIZE):
+            batch = todo[i:i+BATCH_SIZE]
+            params = {
+                "action": "query", "format": "json",
+                "prop": "extracts|categories",
+                "exintro": 1, "explaintext": 1, "exlimit": "max",
+                "cllimit": "max", "clshow": "!hidden",
+                "redirects": 1, "formatversion": 2,
+                "titles": "|".join(batch),
+            }
+            try:
+                data = client.get(params)
+            except Exception as e:
+                print(f"    blad {lang_code.upper()} batch: {e}")
+                for n in batch:
+                    cache[n] = {"exists": False, "is_name": False, "origin": "",
+                                "cats": [], "extract": ""}
+                continue
+            pages = data.get("query", {}).get("pages", [])
+            norm = {}
+            for rd in data.get("query", {}).get("redirects", []):
+                norm[rd["from"]] = rd["to"]
+            for nm in data.get("query", {}).get("normalized", []):
+                norm[nm["from"]] = nm["to"]
+            pg_by_title = {}
+            for pg in pages:
+                pg_by_title[pg.get("title", "")] = pg
+            for n in batch:
+                t = norm.get(n, n)
+                pg = pg_by_title.get(t) or pg_by_title.get(n) or {}
+                missing = pg.get("missing", False)
+                cats = [c["title"] for c in pg.get("categories", [])]
+                extract = pg.get("extract", "") or ""
+                is_name = any("ім'я" in c.lower() or "имя" in c.lower() or "tên" in c.lower() or "nav" in c.lower()
+                              for c in cats)
+                origin = ""
+                if is_name:
+                    for c in cats:
+                        cl = c.lower()
+                        for keyword, orig in origin_map:
+                            if keyword in cl:
+                                origin = orig
+                                break
+                        if origin:
+                            break
+                    if not origin and extract:
+                        low = extract.lower()
+                        for keyword, orig in origin_map:
+                            if keyword in low:
+                                origin = orig
+                                break
+                cache[n] = {"exists": (not missing), "is_name": is_name,
+                            "origin": origin, "cats": cats, "extract": extract}
+            if (i // BATCH_SIZE) % 5 == 0:
+                self.cache.save(cache_name, cache)
+                done = min(i+BATCH_SIZE, len(todo))
+                print(f"    ...{done}/{len(todo)} ({len(cache)} lacznie w cache)")
+        self.cache.save(cache_name, cache)
+        return cache
+
+    def _apply_enrich_uk(self, need):
+        if not need or not self.client_uk:
+            return
+        print(f"  UK Wikipedia (fallback): {len(need)} imion bez pochodzenia")
+        UK_ORIGIN_MAP = [
+            ("слов'ян", "slowianskie"), ("слов'янськ", "slowianskie"),
+            ("українськ", "slowianskie"), ("руськ", "ruskie"),
+            ("грецьк", "greckie"), ("латинськ", "lacinskie"),
+            ("єврейськ", "hebrajskie"), ("іврит", "hebrajskie"),
+            ("германськ", "germanskie"), ("скандинавськ", "skandynawskie"),
+            ("арабськ", "arabskie"), ("перськ", "perskie"),
+            ("кельтськ", "celtyckie"), ("тюркськ", "tureckie"),
+            ("санскрит", "sanskryckie"), ("індійськ", "indyjskie"),
+            ("китайськ", "chinskie"), ("японськ", "japonskie"),
+            ("корейськ", "koreanskie"), ("вірменськ", "ormianskie"),
+            ("грузинськ", "gruzinskie"), ("литовськ", "litewskie"),
+            ("угорськ", "wegierskie"), ("фінськ", "finskie"),
+            ("англійськ", "angielskie"), ("французьк", "francuskie"),
+            ("іспанськ", "hiszpanskie"), ("італійськ", "wloskie"),
+            ("румунськ", "romanskie"), ("польськ", "slowianskie"),
+            ("чеськ", "slowianskie"), ("словацьк", "slowianskie"),
+            ("болгарськ", "slowianskie"), ("сербськ", "slowianskie"),
+            ("хорватськ", "slowianskie"),
+        ]
+        cache = self._check_foreign_wikipedia(
+            [r["imie"] for r in need], self.client_uk, "uk",
+            "phase_uk.json", UK_ORIGIN_MAP)
+        for r in need:
+            entry = cache.get(r["imie"], {})
+            if entry.get("is_name"):
+                r["_name_article"] = True
+                if entry.get("origin"):
+                    r["pochodzenie"] = entry["origin"]
+                    r["_zrodlo"] = "UK"
+
+    def _apply_enrich_ru(self, need):
+        if not need or not self.client_ru:
+            return
+        print(f"  RU Wikipedia (fallback): {len(need)} imion bez pochodzenia")
+        RU_ORIGIN_MAP = [
+            ("славянск", "slowianskie"), ("русск", "ruskie"),
+            ("греческ", "greckie"), ("латинск", "lacinskie"),
+            ("еврейск", "hebrajskie"), ("иврит", "hebrajskie"),
+            ("германск", "germanskie"), ("скандинавск", "skandynawskie"),
+            ("арабск", "arabskie"), ("персидск", "perskie"),
+            ("кельтск", "celtyckie"), ("тюркск", "tureckie"),
+            ("санскрит", "sanskryckie"), ("индийск", "indyjskie"),
+            ("китайск", "chinskie"), ("японск", "japonskie"),
+            ("корейск", "koreanskie"), ("армянск", "ormianskie"),
+            ("грузинск", "gruzinskie"), ("литовск", "litewskie"),
+            ("венгерск", "wegierskie"), ("финск", "finskie"),
+            ("английск", "angielskie"), ("французск", "francuskie"),
+            ("испанск", "hiszpanskie"), ("итальянск", "wloskie"),
+            ("румынск", "romanskie"), ("польск", "slowianskie"),
+            ("чешск", "slowianskie"), ("словацк", "slowianskie"),
+            ("болгарск", "slowianskie"), ("сербск", "slowianskie"),
+            ("хорватск", "slowianskie"), ("украинск", "slowianskie"),
+        ]
+        cache = self._check_foreign_wikipedia(
+            [r["imie"] for r in need], self.client_ru, "ru",
+            "phase_ru.json", RU_ORIGIN_MAP)
+        for r in need:
+            entry = cache.get(r["imie"], {})
+            if entry.get("is_name"):
+                r["_name_article"] = True
+                if entry.get("origin"):
+                    r["pochodzenie"] = entry["origin"]
+                    r["_zrodlo"] = "RU"
+
+    def _apply_enrich_vi(self, need):
+        if not need or not self.client_vi:
+            return
+        print(f"  VI Wikipedia (fallback): {len(need)} imion bez pochodzenia")
+        VI_ORIGIN_MAP = [
+            ("việt nam", "slowianskie"), ("việt", "slowianskie"),
+            ("hy lạp", "greckie"), ("latin", "lacinskie"),
+            ("do thái", "hebrajskie"), ("hebrew", "hebrajskie"),
+            ("german", "germanskie"), ("scandinavia", "skandynawskie"),
+            ("ả rập", "arabskie"), ("ba tư", "perskie"),
+            ("celt", "celtyckie"), ("thổ nhĩ kỳ", "tureckie"),
+            ("sanskrit", "sanskryckie"), ("ấn độ", "indyjskie"),
+            ("trung quốc", "chinskie"), ("nhật bản", "japonskie"),
+            ("hàn quốc", "koreanskie"), ("armenia", "ormianskie"),
+            ("georgia", "gruzinskie"), ("litva", "litewskie"),
+            ("hungary", "wegierskie"), ("phần lan", "finskie"),
+            ("anh", "angielskie"), ("pháp", "francuskie"),
+            ("tây ban nha", "hiszpanskie"), ("ý", "wloskie"),
+            ("romania", "romanskie"), ("ba lan", "slowianskie"),
+            ("séc", "slowianskie"), ("slovak", "slowianskie"),
+            ("bulgaria", "slowianskie"), ("serbia", "slowianskie"),
+            ("croatia", "slowianskie"), ("ukraina", "slowianskie"),
+            ("nga", "ruskie"),
+        ]
+        cache = self._check_foreign_wikipedia(
+            [r["imie"] for r in need], self.client_vi, "vi",
+            "phase_vi.json", VI_ORIGIN_MAP)
+        for r in need:
+            entry = cache.get(r["imie"], {})
+            if entry.get("is_name"):
+                r["_name_article"] = True
+                if entry.get("origin"):
+                    r["pochodzenie"] = entry["origin"]
+                    r["_zrodlo"] = "VI"
+
+    def _apply_enrich_rmy(self, need):
+        if not need or not self.client_rmy:
+            return
+        print(f"  RMY Wikipedia (fallback): {len(need)} imion bez pochodzenia")
+        RMY_ORIGIN_MAP = [
+            ("romani", "romanskie"), ("roma", "romanskie"),
+            ("slavik", "slowianskie"), ("slav", "slowianskie"),
+            ("greko", "greckie"), ("greek", "greckie"),
+            ("latin", "lacinskie"), ("latino", "lacinskie"),
+            ("hebrew", "hebrajskie"), ("jewish", "hebrajskie"),
+            ("german", "germanskie"), ("germanik", "germanskie"),
+            ("skandinav", "skandynawskie"), ("nordik", "skandynawskie"),
+            ("arab", "arabskie"), ("arabik", "arabskie"),
+            ("persik", "perskie"), ("persian", "perskie"),
+            ("keltik", "celtyckie"), ("celt", "celtyckie"),
+            ("turk", "tureckie"), ("turkik", "tureckie"),
+            ("sanskrit", "sanskryckie"), ("indian", "indyjskie"),
+            ("chin", "chinskie"), ("chines", "chinskie"),
+            ("japon", "japonskie"), ("japanes", "japonskie"),
+            ("korean", "koreanskie"), ("koreano", "koreanskie"),
+            ("armen", "ormianskie"), ("georgian", "gruzinskie"),
+            ("litvan", "litewskie"), ("hungarian", "wegierskie"),
+            ("fin", "finskie"), ("english", "angielskie"),
+            ("french", "francuskie"), ("spanish", "hiszpanskie"),
+            ("italian", "wloskie"), ("romanian", "romanskie"),
+            ("polish", "slowianskie"), ("polako", "slowianskie"),
+            ("czech", "slowianskie"), ("slovak", "slowianskie"),
+            ("bulgar", "slowianskie"), ("serb", "slowianskie"),
+            ("croat", "slowianskie"), ("ukrain", "slowianskie"),
+            ("rus", "ruskie"), ("russian", "ruskie"),
+        ]
+        cache = self._check_foreign_wikipedia(
+            [r["imie"] for r in need], self.client_rmy, "rmy",
+            "phase_rmy.json", RMY_ORIGIN_MAP)
+        for r in need:
+            entry = cache.get(r["imie"], {})
+            if entry.get("is_name"):
+                r["_name_article"] = True
+                if entry.get("origin"):
+                    r["pochodzenie"] = entry["origin"]
+                    r["_zrodlo"] = "RMY"
+
     def _apply_enrich_wd(self, need_wd):
         if not need_wd:
             return
@@ -1851,6 +2124,113 @@ class DatasetBuilder:
                     hits += 1
                     break
         print(f"  [MORF] żeńskie formy od męskich baz: +{hits}")
+
+    # Słownik transliteracji: ukraińskie/białoruskie imiona -> polskie/znane bazowe formy
+    # Tylko imiona, które MAJĄ już ustalone pochodzenie w rejestrze PESEL.
+    UK_BE_TRANSLIT = {
+        # żeńskie ukraińskie
+        "tetiana": "tatiana", "nataliia": "natalia", "anastasiia": "anastazja",
+        "yuliia": "julia", "viktoriia": "wiktoria", "liudmyla": "ludmiła",
+        "sofiia": "zofia", "valeriia": "waleria", "liliia": "lilia",
+        "yelyzaveta": "elżbieta", "vira": "wiara", "yevheniia": "eugenia",
+        "yeva": "ewa", "lidiia": "lidia", "dariia": "daria",
+        "solomiia": "salomea", "anastasiya": "anastazja", "natallia": "natalia",
+        "kateryna": "katarzyna", "halyna": "halina", "svitlana": "swietłana",
+        "oksana": "oksana", "iryna": "irena", "nadiia": "nadzieja",
+        "bohdana": "bogdana", "ruslana": "rusłana", "maryna": "maryna",
+        "zhanna": "żanna", "liubov": "lubow", "tamara": "tamara",
+        "alla": "alla", "inna": "inna", "yana": "jana",
+        "daryna": "darina", "khrystyna": "krystyna", "vitaliia": "witalia",
+        "hanna": "anna", "olha": "olga", "mariia": "maria",
+        "polina": "paulina", "aliona": "alona", "vladyslava": "władysława",
+        "yuliya": "julia", "viktoriya": "wiktoria", "sofiya": "zofia",
+        "darya": "daria", "olesia": "olesia", "olesya": "olesia",
+        "snizhana": "śnieżana", "zoryana": "zoriana",
+        # męskie ukraińskie
+        "yurii": "jurij", "oleh": "oleg", "ruslan": "rusłan",
+        "illia": "ilia", "yevhenii": "eugeniusz", "valerii": "walerian",
+        "aliaksei": "aleksy", "stepan": "stefan", "tymofii": "tymoteusz",
+        "giorgi": "jerzy", "nazarii": "nazariusz", "tymur": "tymur",
+        "dzianis": "dionizy", "hennadii": "genadiusz", "iurii": "jurij",
+        "danyil": "daniel", "liubomyr": "lubomir", "arsenii": "arseniusz",
+        "heorhii": "jerzy", "vitaliy": "witalis", "volodymyr": "włodzimierz",
+        "oleksandr": "aleksander", "oleksii": "aleksy", "mykhailo": "michał",
+        "andrii": "andrzej", "serhii": "sergiusz", "dmytro": "dymitr",
+        "maksym": "maksym", "ivan": "iwan", "vasyl": "bazyli",
+        "petro": "piotr", "mykola": "mikołaj", "pavlo": "paweł",
+        "bohdan": "bogdan", "rostyslav": "rościsław", "vladyslav": "władysław",
+        "yaroslav": "jarosław", "sviatoslav": "światosław", "yuriy": "jurij",
+        "andriy": "andrzej", "sergiy": "sergiusz", "anatolii": "anatol",
+        "viacheslav": "wiaczesław", "stanislav": "stanisław", "roman": "roman",
+        "taras": "taras", "vitalii": "witalis", "ihor": "igor",
+        "yevhen": "eugeniusz", "eduard": "edward", "artem": "artem",
+        "denys": "dionizy", "kyrylo": "cyryl", "nazariy": "nazariusz",
+        "oleg": "oleg", "mykhaylo": "michał", "oleksiy": "aleksy",
+    }
+
+    def _apply_transliteration(self):
+        """Transliteracja + heurystyka końcówek dla imion bez pochodzenia.
+
+        1) Słownik: hardcoded mapowanie popularnych ukraińskich/białoruskich
+           imion na ich polskie odpowiedniki (Tetiana->Tatiana, Yurii->Jurij).
+        2) Heurystyka końcówek: -iia->-ia, -iya->-ia, -ii->-i/-ij, -yy->-y.
+           Walidacja: baza musi mieć już ustalone pochodzenie w rejestrze.
+        """
+        all_rows = self.meskie.rows + self.zenskie.rows
+        origin_by = {}
+        for r in all_rows:
+            if r.get("pochodzenie"):
+                origin_by.setdefault(r["imie"].casefold(), r["pochodzenie"])
+
+        hits_dict = 0
+        hits_suffix = 0
+
+        for r in all_rows:
+            if r.get("pochodzenie"):
+                continue
+            n = r["imie"]
+            nf = n.casefold()
+
+            # 1) Słownik transliteracji
+            base = self.UK_BE_TRANSLIT.get(nf)
+            if base:
+                o = origin_by.get(base.casefold())
+                if o:
+                    r["pochodzenie"] = o
+                    r["_zrodlo"] = "TRANS"
+                    r["_zrodlo_baza"] = base
+                    origin_by.setdefault(nf, o)
+                    hits_dict += 1
+                    continue
+
+            # 2) Heurystyka końcówek
+            candidates = []
+            if nf.endswith("iia"):
+                candidates.append(n[:-3] + "ia")
+                candidates.append(n[:-2])
+            if nf.endswith("iya"):
+                candidates.append(n[:-3] + "ia")
+                candidates.append(n[:-3] + "ija")
+            if nf.endswith("ii") and not nf.endswith("iii"):
+                candidates.append(n[:-1])
+                candidates.append(n[:-2] + "ij")
+            if nf.endswith("yy"):
+                candidates.append(n[:-1])
+            if nf.endswith("yi"):
+                candidates.append(n[:-1])
+                candidates.append(n[:-2] + "ij")
+
+            for c in candidates:
+                o = origin_by.get(c.casefold())
+                if o:
+                    r["pochodzenie"] = o
+                    r["_zrodlo"] = "TRANS"
+                    r["_zrodlo_baza"] = c
+                    origin_by.setdefault(nf, o)
+                    hits_suffix += 1
+                    break
+
+        print(f"  [TRANS] transliteracja: +{hits_dict} (słownik) +{hits_suffix} (końcówki)")
 
     def _inherit_origins(self):
         """Imiona będące zdrobnieniem/wariantem dziedziczą pochodzenie bazy.

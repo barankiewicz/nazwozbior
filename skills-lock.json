@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "skills": {
+    "agents-md-improver": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/agents-md-improver/SKILL.md",
+      "computedHash": "9d3872abde6cab8afc27e6eecacfe341c1121fc8c8b00971dac263e70c8c3463"
+    },
+    "code-architect": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/code-architect/SKILL.md",
+      "computedHash": "33bf42bd0070da89a3564726f7f2ca4012d701af282f09d9517dea2eb405125b"
+    },
+    "code-explorer": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/code-explorer/SKILL.md",
+      "computedHash": "80408ee71c7aa423f8aa6f9a4c774f4d39f3b4ec0cab52da988645122c188e37"
+    },
+    "code-review": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/code-review/SKILL.md",
+      "computedHash": "971a84635ad7c4d246d557d2875b2c69d0cfc302dc61f0504aef5398fd8aae92"
+    },
+    "code-reviewer": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/code-reviewer/SKILL.md",
+      "computedHash": "7b06eb4aea30b460ea6ab0efb7769508e953ccb9e227b4aa6d2e8b7b4b09604b"
+    },
+    "feature-dev": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/feature-dev/SKILL.md",
+      "computedHash": "6adf5b8c28e21b0252c65cd16ee4ef4e999053530b1aad589abcc84e98a4345c"
+    },
+    "frontend-design": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "c4a9d7467669f9b137b989efaed9eea7e608d9a180c2e3acfbc99be31c9cc488"
+    },
+    "mcp-builder": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/mcp-builder/SKILL.md",
+      "computedHash": "1f09bbc1114eb4a89f7295d555b61c7e144815721deecc3eb2323cd521be3a64"
+    },
+    "security-review": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/security-review/SKILL.md",
+      "computedHash": "f4296ce0d25de13354777a72b001620dbc1d31a87453c09d740a5792425b476f"
+    },
+    "skill-creator": {
+      "source": "waybarrios/opencode-power-pack",
+      "sourceType": "github",
+      "skillPath": "skills/skill-creator/SKILL.md",
+      "computedHash": "e3ff48240a1a59e20353dda9a2bfc7256bea9a2b97025162e7ca6b006e05d5f4"
+    }
+  }
+}

@@ -98,6 +98,7 @@
   .lede{font-size:clamp(16px,1.8vw,18.5px);color:var(--muted);margin:24px 0 0;max-width:620px}
 
   .controls{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-end;margin:8px 0 0}
+  .flex-break{flex-basis:100%;height:0}
   .ctl{display:flex;flex-direction:column;gap:8px}
   .ctl > label{font-size:13px;color:var(--faint)}
   .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:3px;flex-wrap:wrap}
@@ -113,11 +114,11 @@
     border:1px solid var(--line-strong);border-radius:12px;padding:9px 13px;min-width:180px;outline:none;transition:.16s}
   select:hover,input[type="text"]:hover{border-color:var(--muted)}
   select:focus,input[type="text"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
-.len{min-width:230px}
+.len{width:290px}
 .len .row{display:flex;align-items:center;gap:12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface-2);padding:7px 15px;min-height:40px;transition:border-color .16s}
 .len .row:hover{border-color:var(--muted)}
 .len .row:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
-.len input[type="range"]{flex:1;accent-color:var(--accent);height:6px;cursor:pointer}
+.len input[type="range"]{flex:1;min-width:0;accent-color:var(--accent);height:6px;cursor:pointer}
   .len .val{font-size:13.5px;color:var(--muted);white-space:nowrap}
   /* liczniki wystąpień: gołe pola wtopione w obramowany wiersz, bez spinnerów */
   .len input[type="number"]{font:inherit;font-size:14.5px;color:var(--ink);background:transparent;
@@ -236,17 +237,23 @@
   .regex-err{font-size:11.5px;color:#c44;margin-top:4px;min-height:0}
   :root[data-theme="dark"] .regex-err,:root:not([data-theme="light"]) .regex-err{color:#f08080}
 
-  .ux-help-ctl{position:relative}
-  .ux-help-btn{border:0;background:transparent;color:var(--faint);font-size:13px;cursor:pointer;padding:1px 4px;
-    line-height:1;border-radius:50%;transition:.16s;vertical-align:-1px}
-  .ux-help-btn:hover{color:var(--accent)}
-  .ux-help{display:none;position:absolute;left:0;bottom:100%;margin-bottom:6px;z-index:20;
-    background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;padding:12px 15px;
-    box-shadow:0 6px 24px rgba(0,0,0,.12);min-width:260px;max-width:360px;font-size:13px;color:var(--muted);line-height:1.6}
-  .ux-help.open{display:block}
-  .ux-help h4{margin:0 0 6px;font-size:13px;color:var(--ink);font-weight:700}
-  .ux-help p{margin:0 0 6px}
-  .ux-help p:last-child{margin-bottom:0}
+  .gend-tip{display:inline-block;font-size:10px;color:var(--faint);cursor:help;
+    border:1px solid var(--line-strong);border-radius:50%;width:15px;height:15px;text-align:center;
+    line-height:15px;vertical-align:1px;margin-left:3px}
+  .gend-tip:hover{color:var(--accent);border-color:var(--accent)}
+  [data-tip]{cursor:help}
+  td[data-tip]:hover::after,
+  span[data-tip]:hover::after{
+    content:attr(data-tip);position:absolute;
+    bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+    z-index:30;background:var(--surface);color:var(--ink);
+    border:1px solid var(--line-strong);border-radius:10px;
+    padding:8px 14px;box-shadow:0 4px 24px rgba(0,0,0,.25);
+    font-size:12.5px;font-weight:400;line-height:1.5;
+    white-space:nowrap;pointer-events:none;
+    animation:tipIn .08s ease both}
+  @keyframes tipIn{from{opacity:0;transform:translateX(-50%) translateY(3px)}}
+  td[data-tip],span[data-tip]{position:relative}
 </style>
 </head>
 <body>
@@ -277,15 +284,17 @@
           <div class="seg" id="seg-gender" role="group" aria-label="rodzaj imion">
             <button type="button" data-g="z" aria-pressed="true">żeńskie</button>
             <button type="button" data-g="m" aria-pressed="false">męskie</button>
-            <button type="button" data-g="nb" aria-pressed="false">niebinarne</button>
+            <button type="button" data-g="uni" aria-pressed="false">unisex <span class="gend-tip" data-tip="Imiona z rejestru PESEL występujące w obu rejestrach (co najmniej 10% nadań rzadszej płci). Obliczane przez Nazwozbiór.">?</span></button>
+            <button type="button" data-g="nb" aria-pressed="false">niebinarne <span class="gend-tip" data-tip="Imiona neutralne płciowo z zaimki.pl, zebrane przez kolektyw „Rada Języka Neutralnego” (zaimki.pl/imiona).">?</span></button>
             <button type="button" data-g="all" aria-pressed="false">wszystkie</button>
           </div>
         </div>
+        <div class="flex-break" aria-hidden="true"></div>
         <div class="ctl len">
-          <label>długość · <span class="val" id="len-val">2–20 liter</span></label>
+          <label>długość · <span class="val" id="len-val">2–35 liter</span></label>
           <div class="row">
-            <input type="range" id="len-min" min="1" max="20" value="2" step="1" aria-label="minimalna długość">
-            <input type="range" id="len-max" min="1" max="20" value="20" step="1" aria-label="maksymalna długość">
+            <input type="range" id="len-min" min="1" max="35" value="2" step="1" aria-label="minimalna długość">
+            <input type="range" id="len-max" min="1" max="35" value="35" step="1" aria-label="maksymalna długość">
           </div>
         </div>
         <div class="ctl len">
@@ -321,15 +330,7 @@
             </ul>
           </div>
         </div>
-        <div class="ctl ux-help-ctl">
-          <label>unisex <button type="button" class="ux-help-btn" id="unisex-help-btn" aria-label="Czym są imiona unisex?" title="Czym są imiona unisex?">?</button></label>
-          <div class="ux-help" id="unisex-help" role="dialog" aria-label="Czym są imiona unisex?">
-            <h4>Imiona unisex (neutralne płciowo)</h4>
-            <p>To imiona z rejestru PESEL, które występują <b>zarówno u osób z metryką żeńską, jak i męską</b> — w obu grupach co najmniej 10%.</p>
-            <p>Odsetek (np. <b>⚥ 15%</b>) oznacza udział rzadszej płci. Np. „Alex" gdzie 85% nadań to mężczyźni a 15% to kobiety — wyświetlimy ⚥ 15%.</p>
-            <p>Imiona unisex znajdziesz w kategorii <b>niebinarne</b> — razem z imionami z <a href="https://zaimki.pl/imiona" target="_blank" rel="noopener noreferrer">zaimki.pl</a>.</p>
-          </div>
-        </div>
+      
       </div>
 
       <div class="meta">
@@ -366,7 +367,8 @@
 
     <footer>
       <span>📊 dane: rejestr PESEL (dane.gov.pl)<br>
-        📖 opisy: polska Wikipedia (CC BY-SA)<br>
+        📖 opisy: Wikipedia (PL/EN/UK/RU/VI, CC BY-SA), en.Wiktionary (CC BY-SA)<br>
+        🤖 tłumaczenia: <a href="https://translate.wmcloud.org/" target="_blank" rel="noopener noreferrer">MinT Wikimedia</a> (NLLB)<br>
         🌈 imiona niebinarne: <a href="https://zaimki.pl/imiona" target="_blank" rel="noopener noreferrer">zaimki.pl</a>
         - dziękujemy kolektywowi „Rada Języka Neutralnego” 💜<br>
         🏠 made in Warsaw · <a href="kontakt.html">kontakt</a></span>
@@ -426,12 +428,11 @@
       r._war.push({w:v,z:hit.z,m:hit.m});
     });
   });
-  var hasData=(M.length+Z.length)>0;
-  function tot(r){return r._g==="nb"?(r._rzp+r._rzd+r._rmp+r._rmd):((r.wystapienia_pierwsze||0)+(r.wystapienia_drugie||0));}
+  function tot(r){return r._g==="nb"||r._g==="uni"?(r._rzp+r._rzd+r._rmp+r._rmd):((r.wystapienia_pierwsze||0)+(r.wystapienia_drugie||0));}
   function nbOriginLabel(r){return r.pochodzenie?originLabel(r.pochodzenie):(r.pochodzenie_opis||"nieokreślone");}
 
   var PER_PAGE=250,page=0,displayAll=false,startOffset=0;
-  var state={g:"z",min:2,max:20,minUse:0,maxUse:0,origin:"all",q:"",sort:"wystapienia_pierwsze",dir:-1,regex:false};
+  var state={g:"z",min:2,max:35,minUse:0,maxUse:0,origin:"all",q:"",sort:"wystapienia_pierwsze",dir:-1,regex:false};
 
   var rowsEl=document.getElementById("rows"),countEl=document.getElementById("count"),
       headEl=document.getElementById("head"),originSel=document.getElementById("origin"),
@@ -448,6 +449,28 @@
   function pool(){
     if(state.g==="m")return M;
     if(state.g==="z")return Z;
+    if(state.g==="uni"){
+      var uSeen={},uOut=[];
+      M.concat(Z).forEach(function(r){
+        if(!r.unisex||r.unisex<0.1)return;
+        var k=r.imie.toLowerCase();
+        if(uSeen[k])return;
+        uSeen[k]=true;
+        var zE=IDX[k]?IDX[k].z:null,mE=IDX[k]?IDX[k].m:null;
+        var ur={};
+        ur.imie=r.imie;ur._g="uni";
+        ur._rzp=zE?(zE.wystapienia_pierwsze||0):0;
+        ur._rzd=zE?(zE.wystapienia_drugie||0):0;
+        ur._rmp=mE?(mE.wystapienia_pierwsze||0):0;
+        ur._rmd=mE?(mE.wystapienia_drugie||0):0;
+        ur._war=[];ur.pochodzenie=r.pochodzenie;ur.unisex=r.unisex;
+        ur._src=r;ur.opis_html=r.opis_html;ur.zrodlo=r.zrodlo;
+        ur.zrodlo_baza=r.zrodlo_baza;ur.bazowe=r.bazowe;ur.pochodne=r.pochodne;
+        ur.trend=r.trend;
+        uOut.push(ur);
+      });
+      return uOut;
+    }
     if(state.g==="nb"){
       var seen={},out=N.slice();
       N.forEach(function(r){seen[r.imie.toLowerCase()]=true;});
@@ -476,10 +499,11 @@
   function val(r,key){
     if(key==="dlugosc")return r.imie.length;
     if(key==="imie")return r.imie.toLowerCase();
-    if(key==="pochodzenie")return r._g==="nb"?nbOriginLabel(r):originLabel(r.pochodzenie);
+    if(key==="pochodzenie")return (r._g==="nb"||r._g==="uni")?nbOriginLabel(r):originLabel(r.pochodzenie);
     if(key==="wystapienia_razem")return tot(r);
     if(key==="rejz")return r._rzp+r._rzd;
     if(key==="rejm")return r._rmp+r._rmd;
+    if(key==="ratio_nb"){var z=r._rzp+r._rzd,m=r._rmp+r._rmd,t=z+m;return t?z/t:0;}
     return r[key]||0;
   }
   var _rxCache={pat:null,rx:null,err:null};
@@ -526,9 +550,9 @@
   }
   function loadState(){
     var p=new URLSearchParams(location.search);
-    if(p.has("gender")){var v=p.get("gender");if(v==="m"||v==="z"||v==="all"||(v==="nb"&&N.length))state.g=v;}
+    if(p.has("gender")){var v=p.get("gender");if(v==="m"||v==="z"||v==="all"||v==="uni"||(v==="nb"&&N.length))state.g=v;}
     if(p.has("min")){var n=+p.get("min");if(n>=1&&n<=20)state.min=n;}
-    if(p.has("max")){var n=+p.get("max");if(n>=1&&n<=20)state.max=n;}
+    if(p.has("max")){var n=+p.get("max");if(n>=1&&n<=35)state.max=n;}
     if(p.has("minu")){var n=+p.get("minu");if(n>=0)state.minUse=n;}
     if(p.has("maxu")){var n=+p.get("maxu");if(n>=0)state.maxUse=n;}
     if(p.has("origin"))state.origin=p.get("origin");
@@ -541,7 +565,7 @@
     var p=new URLSearchParams();
     if(state.g!=="z")p.set("gender",state.g);
     if(state.min!==2)p.set("min",state.min);
-    if(state.max!==20)p.set("max",state.max);
+    if(state.max!==35)p.set("max",state.max);
     if(state.minUse>0)p.set("minu",state.minUse);
     if(state.maxUse>0)p.set("maxu",state.maxUse);
     if(state.origin!=="all")p.set("origin",state.origin);
@@ -571,14 +595,21 @@
     var mC=M.filter(function(r){return match(r,false);}).length;
     var zC=Z.filter(function(r){return match(r,false);}).length;
     var nC=N.filter(function(r){return match(r,false);}).length;
+    var uSeenBi={},uC=0;
+    M.concat(Z).forEach(function(r){
+      if(!r.unisex||r.unisex<0.1)return;
+      var k=r.imie.toLowerCase();
+      if(!uSeenBi[k]&&match(r,false)){uSeenBi[k]=true;uC++;}
+    });
     var aC=mC+zC;
     var seg=document.getElementById("seg-gender");
     var b=seg.querySelectorAll("button");
     b[0].innerHTML='żeńskie <span class="facet-num">'+nf(zC)+'</span>';
     b[1].innerHTML='męskie <span class="facet-num">'+nf(mC)+'</span>';
-    b[2].innerHTML='niebinarne <span class="facet-num">'+nf(nC)+'</span>';
-    b[3].innerHTML='wszystkie <span class="facet-num">'+nf(aC)+'</span>';
-    b[2].style.display=N.length?"":"none";
+    b[2].innerHTML='unisex <span class="gend-tip" data-tip="Imiona z rejestru PESEL występujące w obu rejestrach (co najmniej 10% nadań rzadszej płci). Obliczane przez Nazwozbiór.">?</span> <span class="facet-num">'+nf(uC)+'</span>';
+    b[3].innerHTML='niebinarne <span class="gend-tip" data-tip="Imiona neutralne płciowo z zaimki.pl, zebrane przez kolektyw „Rada Języka Neutralnego” (zaimki.pl/imiona).">?</span> <span class="facet-num">'+nf(nC)+'</span>';
+    b[4].innerHTML='wszystkie <span class="facet-num">'+nf(aC)+'</span>';
+    b[3].style.display=N.length?"":"none";
     var oC={},oK=[];pool().forEach(function(r){
       if(!match(r,true))return;
       var o=r.pochodzenie||"__none__";
@@ -602,13 +633,6 @@
   function plural(n){var a=n%10,b=n%100;if(n===1)return"imię";if(a>=2&&a<=4&&!(b>=12&&b<=14))return"imiona";return"imion";}
   function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
   function render(){
-    if(!hasData){
-      rowsEl.innerHTML='<tr><td colspan="7"><div class="empty">'+
-        'Tu pojawią się imiona. Najpierw uruchom <code>python3 zbuduj_dataset.py</code>,<br>'+
-        'żeby utworzyć plik <code>dane.js</code> obok tej strony.</div></td></tr>';
-      countEl.textContent="";prevBtn.style.display="none";nextBtn.style.display="none";
-      pageInfo.textContent="";viewAllBtn.style.display="none";return;
-    }
     var all=sorted(filtered()),total=all.length;
     if(startOffset>=total)startOffset=0;
     var totalPages=Math.max(1,Math.ceil((total-startOffset)/PER_PAGE));
@@ -644,6 +668,12 @@
         case"RU":lab="rosyjskiej Wikipedii";url="https://ru.wikipedia.org/wiki/"+n;break;
         case"VI":lab="wietnamskiej Wikipedii";url="https://vi.wikipedia.org/wiki/"+n;break;
         case"RMY":lab="romskiej Wikipedii";url="https://rmy.wikipedia.org/wiki/"+n;break;
+        case"WIKT-CAT":lab="en.Wiktionary (kategorie)";url="https://en.wiktionary.org/wiki/"+n;break;
+        case"WAR":return r.zrodlo_baza?' <span class="origin-src">(wnioskowane od imienia '+xref(r.zrodlo_baza)+')</span>':"";
+        case"EN-TL":lab="angielskiej Wikipedii (tłum.)";url="https://en.wikipedia.org/wiki/"+n;break;
+        case"UK-TL":lab="ukraińskiej Wikipedii (tłum.)";url="https://uk.wikipedia.org/wiki/"+n;break;
+        case"RU-TL":lab="rosyjskiej Wikipedii (tłum.)";url="https://ru.wikipedia.org/wiki/"+n;break;
+        case"VI-TL":lab="wietnamskiej Wikipedii (tłum.)";url="https://vi.wikipedia.org/wiki/"+n;break;
         default:return"";
       }
       return ' <span class="origin-src">(wg <a href="'+url+'" target="_blank" rel="noopener noreferrer">'+lab+'</a>)</span>';
@@ -709,23 +739,28 @@
     }
     var h="";
     shown.forEach(function(r,i){
-      var nb=r._g==="nb";
-      var c3=nb?nf(r._rzp+r._rzd):nf(r.wystapienia_pierwsze);
-      var c4=nb?nf(r._rmp+r._rmd):nf(r.wystapienia_drugie);
+      var nb=r._g==="nb",uni=r._g==="uni";
+      var nx=nb||uni;
+      var c3=nx?nf(r._rzp+r._rzd):nf(r.wystapienia_pierwsze);
+      var c4=nx?nf(r._rmp+r._rmd):nf(r.wystapienia_drugie);
+      var zTotal=r._rzp+r._rzd,mTotal=r._rmp+r._rmd,tCombined=zTotal+mTotal;
+      var zPctR=tCombined?Math.round(zTotal/tCombined*100):0;
+      var ratioStr=nx?'<span>ż\u00A0'+zPctR+'%\u00A0/\u00A0m\u00A0'+(100-zPctR)+'%</span>':'<td class="num"></td>';
       var tagTxt=nb?nbOriginLabel(r):originLabel(r.pochodzenie);
       if(tagTxt.length>26)tagTxt=tagTxt.slice(0,24)+"…";
-      var unisexBadge=r.unisex&&r.unisex>=0.1?' <span class="unisex-badge" title="unisex: '+Math.round(r.unisex*100)+'% ⚥">⚥</span>':'';
+      var unisexBadge=r.unisex&&r.unisex>=0.1?' <span class="unisex-badge" data-tip="Imię unisex (z PESEL): '+Math.round(r.unisex*100)+'% nadań to płeć rzadsza (≥10% w obu rejestrach)">⚥</span>':'';
       h+='<tr class="main" tabindex="0" data-i="'+i+'" data-imie="'+esc(r.imie)+'" aria-expanded="false">'+
            '<td class="name">'+esc(r.imie)+unisexBadge+'</td>'+
            '<td class="num hide">'+r.imie.length+'</td>'+
            '<td><span class="tag '+originClass(r.pochodzenie)+'">'+esc(tagTxt)+'</span></td>'+
            '<td class="num">'+c3+'</td>'+
            '<td class="num hide">'+c4+'</td>'+
+           (nx?'<td class="num" data-tip="Stosunek nadań żeńskich do męskich. Im bliżej 50/50, tym bardziej neutralne płciowo imię.">'+ratioStr+'</td>':'<td class="num"></td>')+
            '<td class="num hide">'+nf(tot(r))+'</td>'+
            '<td style="text-align:right"><span class="chev">›</span></td></tr>'+
-         '<tr class="detail" data-d="'+i+'"><td colspan="7"><div class="detail-inner" aria-hidden="true"><div class="detail-pad">'+
-          (nb&&!r._is_unisex_pesel?nbDetail(r):
-           nb&&r._is_unisex_pesel?unisexPeselDetail(r):
+         '<tr class="detail" data-d="'+i+'"><td colspan="8"><div class="detail-inner" aria-hidden="true"><div class="detail-pad">'+
+         (nb&&!r._is_unisex_pesel?nbDetail(r):
+          (nb&&r._is_unisex_pesel)||uni?unisexPeselDetail(r):
             '<p class="freq">w PESEL: <b>'+nf(r.wystapienia_pierwsze)+'</b> os. jako imię pierwsze, '+
               '<b>'+nf(r.wystapienia_drugie)+'</b> jako drugie'+
               (r.pochodzenie?(' · pochodzenie <b>'+originLabel(r.pochodzenie)+'</b>'+originSrc(r)):'')+'</p>'+
@@ -738,7 +773,7 @@
                '<p class="src" data-src-imie="'+esc(r.imie)+'" style="display:none"></p>')))+
          '</div></div></td></tr>';
     });
-    rowsEl.innerHTML=h||'<tr><td colspan="7"><div class="empty">Nic z tego nie pasuje - poluzuj trochę filtry.<span class="shrug">¯\\_(ツ)_/¯</span></div></td></tr>';
+    rowsEl.innerHTML=h||'<tr><td colspan="8"><div class="empty">Nic z tego nie pasuje - poluzuj trochę filtry.<span class="shrug">¯\\_(ツ)_/¯</span></div></td></tr>';
     markHead();pushState();updateFacetUI();
   }
   // — leniwe opisy: dociągane shardami opisy/<litera>.js przy rozwinięciu —
@@ -759,7 +794,17 @@
     document.head.appendChild(sc);
   }
   function getOpis(name){return (OPISY[shardKey(name)]||{})[name]||"";}
-  function opisSrcLink(imie){return 'źródło: <a href="https://pl.wikipedia.org/wiki/'+encodeURIComponent(imie)+'" target="_blank" rel="noopener noreferrer">polska Wikipedia</a>';}
+  var OPISY_SRC=window.NZ_OPISY_SRC=window.NZ_OPISY_SRC||{};
+  function getOpisSrc(name){return (OPISY_SRC[shardKey(name)]||{})[name]||"";}
+  function opisSrcLink(imie){
+    var src=getOpisSrc(imie);
+    var n=encodeURIComponent(imie);
+    if(src==="EN")return 'źródło: <a href="https://en.wikipedia.org/wiki/'+n+'" target="_blank" rel="noopener noreferrer">angielska Wikipedia</a> <span style="opacity:.6">(tłum. automatyczne)</span>';
+    if(src==="UK")return 'źródło: <a href="https://uk.wikipedia.org/wiki/'+n+'" target="_blank" rel="noopener noreferrer">ukraińska Wikipedia</a> <span style="opacity:.6">(tłum. automatyczne)</span>';
+    if(src==="RU")return 'źródło: <a href="https://ru.wikipedia.org/wiki/'+n+'" target="_blank" rel="noopener noreferrer">rosyjska Wikipedia</a> <span style="opacity:.6">(tłum. automatyczne)</span>';
+    if(src==="VI")return 'źródło: <a href="https://vi.wikipedia.org/wiki/'+n+'" target="_blank" rel="noopener noreferrer">wietnamska Wikipedia</a> <span style="opacity:.6">(tłum. automatyczne)</span>';
+    return 'źródło: <a href="https://pl.wikipedia.org/wiki/'+n+'" target="_blank" rel="noopener noreferrer">polska Wikipedia</a>';
+  }
   function fillOpis(scope,imie){
     var d=scope.querySelector('[data-opis-imie="'+esc(imie)+'"]');
     if(!d)return;
@@ -780,13 +825,14 @@
     '<th tabindex="0" data-key="pochodzenie">pochodzenie <span class="arr">▲</span></th>'+
     '<th tabindex="0" data-key="rejz" class="num">w rej. żeńskim <span class="arr">▲</span></th>'+
     '<th tabindex="0" data-key="rejm" class="num hide">w rej. męskim <span class="arr">▲</span></th>'+
+    '<th tabindex="0" data-key="ratio_nb" class="num"><span data-tip="Stosunek nadań żeńskich do męskich. Im bliżej 50/50, tym bardziej neutralne płciowo imię.">ż / m</span> <span class="arr">▲</span></th>'+
     '<th tabindex="0" data-key="wystapienia_razem" class="num hide">łącznie <span class="arr">▲</span></th>'+
     '<th aria-label="rozwiń"></th>';
   function setHead(){
-    var nb=state.g==="nb";
+    var nb=state.g==="nb"||state.g==="uni";
     headEl.innerHTML=nb?HEAD_NB:HEAD_BIN;
     if(nb){if(state.sort==="wystapienia_pierwsze")state.sort="rejz";if(state.sort==="wystapienia_drugie")state.sort="rejm";}
-    else{if(state.sort==="rejz")state.sort="wystapienia_pierwsze";if(state.sort==="rejm")state.sort="wystapienia_drugie";}
+    else{if(state.sort==="rejz")state.sort="wystapienia_pierwsze";if(state.sort==="rejm")state.sort="wystapienia_drugie";if(state.sort==="ratio_nb")state.sort="wystapienia_razem";}
   }
   function markHead(){
     [].forEach.call(headEl.querySelectorAll("th[data-key]"),function(th){
@@ -832,13 +878,9 @@
   });
   document.addEventListener("click",function(e){
     if(!regexHelp.contains(e.target)&&e.target!==regexHelpBtn)regexHelp.classList.remove("open");
-    var uh=document.getElementById("unisex-help"),uhb=document.getElementById("unisex-help-btn");
-    if(!uh.contains(e.target)&&e.target!==uhb)uh.classList.remove("open");
+  
   });
-  var unisexHelpBtn=document.getElementById("unisex-help-btn"),unisexHelp=document.getElementById("unisex-help");
-  unisexHelpBtn.addEventListener("click",function(e){
-    e.stopPropagation();unisexHelp.classList.toggle("open");
-  });
+  
   function actKey(e){return e.key==="Enter"||e.key===" "||e.key==="Spacebar";}
   headEl.addEventListener("keydown",function(e){
     if(!actKey(e))return;
@@ -864,11 +906,18 @@
   function gotoName(name){
     var hit=IDX[name.toLowerCase()]||{};
     if(!hit.m&&!hit.z)return;
-    if(!((state.g==="m"&&hit.m)||(state.g==="z"&&hit.z)||state.g==="all")){
+    if(!((state.g==="m"&&hit.m)||(state.g==="z"&&hit.z)||state.g==="all"||state.g==="uni")){
       state.g=(hit.m&&hit.z)?"all":(hit.z?"z":"m");syncSeg();setHead();
     }
     // poluzuj tylko te filtry, które ukryłyby cel
     var r0=(state.g==="m"?hit.m:state.g==="z"?hit.z:(hit.z||hit.m))||hit.z||hit.m;
+    if(state.g==="uni"){
+      var zR=hit.z,mR=hit.m;
+      var zT=zR?((zR.wystapienia_pierwsze||0)+(zR.wystapienia_drugie||0)):0;
+      var mT=mR?((mR.wystapienia_pierwsze||0)+(mR.wystapienia_drugie||0)):0;
+      var totalT=zT+mT;
+      if(!totalT||Math.min(zT,mT)/totalT<0.1)return;
+    }
     var L=name.length,t=tot(r0);
     if(L<state.min){state.min=L;lenMin.value=L;}
     if(L>state.max){state.max=L;lenMax.value=L;}
@@ -930,12 +979,14 @@
     var all=sorted(filtered());
     if(!all.length)return;
     var shown=displayAll?all:all.slice(page*PER_PAGE,page*PER_PAGE+PER_PAGE);
-    var nb=state.g==="nb";
-    var csv=nb?"\uFEFFimię,długość,pochodzenie,znaczenie,rejestr żeński,rejestr męski\n"
-              :"\uFEFFimię,długość,pochodzenie,pierwsze,drugie,łącznie\n";
+    var nb=state.g==="nb",uni=state.g==="uni";
+    var csv=nb||uni?"\uFEFFimię,długość,pochodzenie,znaczenie,rejestr żeński,rejestr męski,ż%,m%\n"
+                   :"\uFEFFimię,długość,pochodzenie,pierwsze,drugie,łącznie\n";
     shown.forEach(function(r){
-      if(nb){
-        csv+='"'+r.imie+'",'+r.imie.length+',"'+nbOriginLabel(r).replace(/"/g,'""')+'","'+(r.znaczenie||"").replace(/"/g,'""')+'",'+(r._rzp+r._rzd)+","+(r._rmp+r._rmd)+"\n";
+      if(nb||uni){
+        var zCsv=r._rzp+r._rzd,mCsv=r._rmp+r._rmd,tCsv=zCsv+mCsv;
+        var zPctCsv=tCsv?Math.round(zCsv/tCsv*100):0;
+        csv+='"'+r.imie+'",'+r.imie.length+',"'+nbOriginLabel(r).replace(/"/g,'""')+'","'+(r.znaczenie||"").replace(/"/g,'""')+'",'+zCsv+","+mCsv+","+zPctCsv+","+(100-zPctCsv)+"\n";
         return;
       }
       var o=originLabel(r.pochodzenie);
