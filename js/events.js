@@ -66,6 +66,10 @@ regexToggle.addEventListener("click", function () {
 favToggle.addEventListener("click", function () {
   state.fav = !state.fav;
   favToggle.setAttribute("aria-pressed", state.fav ? "true" : "false");
+  var starSpan = favToggle.querySelector(".fav-star");
+  if (starSpan) {
+    starSpan.textContent = state.fav ? "★" : "☆";
+  }
   render();
 });
 
@@ -308,7 +312,11 @@ if ('IntersectionObserver' in window) {
 
   if (state.q) searchInput.value = state.q;
   if (state.regex) { regexToggle.setAttribute("aria-pressed", "true"); searchInput.placeholder = "np. ^A, a$, [aeiou]{2}…"; }
-  if (state.fav) { favToggle.setAttribute("aria-pressed", "true"); }
+  if (state.fav) { 
+    favToggle.setAttribute("aria-pressed", "true"); 
+    var starSpan = favToggle.querySelector(".fav-star");
+    if (starSpan) starSpan.textContent = "★";
+  }
 
   updateHeader();
   render();

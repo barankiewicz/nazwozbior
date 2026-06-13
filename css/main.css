@@ -120,9 +120,19 @@ tbody tr.main{border-bottom:1px solid var(--line);cursor:pointer;transition:back
 tbody tr.main:hover{background:var(--row-hover)}
 tbody td{padding:13px 14px;font-size:15px;vertical-align:middle}
 td.name{font-family:var(--display);font-weight:600;font-size:17px;display:flex;align-items:center;gap:8px}
-.fav-btn{background:transparent;border:0;color:var(--faint);cursor:pointer;padding:0 4px;font-size:18px;line-height:1;transition:.16s}
-.fav-btn:hover{color:var(--accent);transform:scale(1.15)}
+.fav-btn{background:transparent;border:0;color:var(--faint);cursor:pointer;padding:0 4px;font-size:22px;line-height:1;transition:.16s ease-out;display:inline-block}
+.fav-btn:hover{color:var(--accent);transform:scale(1.25)}
 .fav-btn.active{color:var(--accent)}
+
+/* ── Przycisk filtra ulubionych ── */
+.fav-toggle-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);
+  background:var(--surface);color:var(--muted);font:inherit;font-size:13.5px;font-weight:600;
+  padding:5px 12px;border-radius:999px;cursor:pointer;transition:.16s;white-space:nowrap}
+.fav-toggle-btn:hover{color:var(--accent);border-color:var(--accent)}
+.fav-toggle-btn .fav-star{font-size:18px;line-height:1;transition:transform .16s ease-out;display:inline-block}
+.fav-toggle-btn:hover .fav-star{transform:scale(1.25)}
+.fav-toggle-btn[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.fav-toggle-btn[aria-pressed="true"] .fav-star{color:#fff}
 td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
 .tag{display:inline-block;font-size:12.5px;font-weight:700;padding:3px 12px;border-radius:999px}
 tr.detail td{padding:0 14px;background:var(--surface-2)}
