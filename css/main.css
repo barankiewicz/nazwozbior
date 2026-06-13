@@ -253,9 +253,10 @@ footer a{color:var(--muted)}
   line-height:15px;vertical-align:1px;margin-left:3px}
 .gend-tip:hover{color:var(--accent);border-color:var(--accent)}
 [data-tip]{cursor:help}
-td[data-tip],span[data-tip]{position:relative}
+td[data-tip],span[data-tip],button[data-tip]{position:relative}
 td[data-tip]:hover::after,
-span[data-tip]:hover::after{
+span[data-tip]:hover::after,
+button[data-tip]:hover::after{
   content:attr(data-tip);position:absolute;
   bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
   z-index:30;background:var(--surface);color:var(--ink);
