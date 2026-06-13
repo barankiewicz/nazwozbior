@@ -214,7 +214,23 @@
   @media(max-width:620px){#back-top{bottom:16px;right:16px}}
   .unisex-badge{font-size:11px;background:var(--teal);color:#fff;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle;opacity:.7}
   .unisex-badge:hover{opacity:1}
-  .trend{margin:16px 0;padding:12px;background:var(--surface-2);border-radius:12px;font-size:14px}
+  .trend{margin:16px 0;padding:12px 14px;background:var(--surface-2);border-radius:12px}
+  .trend-svg{display:block;width:100%;height:auto;overflow:visible}
+  .trend-area{fill:var(--accent);opacity:.12;stroke:none}
+  .trend-line{fill:none;stroke:var(--accent);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+  .trend-gap{stroke:var(--accent);stroke-width:2;stroke-dasharray:2.5 4;opacity:.45;stroke-linecap:round}
+  .trend-axis{stroke:var(--line-strong);stroke-width:1}
+  .trend-grid{stroke:var(--line-strong);stroke-width:1;opacity:.5}
+  .trend-dot{fill:var(--surface);stroke:var(--accent);stroke-width:1.6}
+  .trend-peak{fill:var(--teal);stroke:var(--surface);stroke-width:1.6}
+  .trend-cursor{fill:var(--accent);stroke:var(--surface);stroke-width:2;pointer-events:none}
+  .trend-tick{fill:var(--faint);font-size:9px;font-family:var(--font)}
+  .trend-lbl{fill:var(--faint);font-size:10px;font-family:var(--font)}
+  .trend-hit{fill:transparent;cursor:crosshair}
+  .trend-foot{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--faint)}
+  .trend-foot b{color:var(--ink);font-weight:700}
+  .trend-tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--bg);padding:5px 9px;border-radius:8px;font:600 12px/1.25 var(--font);text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.28);transform:translate(-50%,-100%);white-space:nowrap}
+  .trend-tip span{display:block;font-weight:400;opacity:.7;font-size:10.5px}
 
   .regex-wrap{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   .regex-toggle{border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);font:inherit;font-size:12px;
@@ -686,13 +702,78 @@
       return parts.length?'<p class="xrefs">'+parts.join(' · ')+'</p>':'';
     }
     function trendSparkline(trend){
-      if(!trend||!trend['2022']||!trend['2024'])return"";
-      var v22=trend['2022'],v24=trend['2024'];
-      var change=((v24-v22)/v22*100).toFixed(0);
-      var direction=v24>v22?'↗':'↘';
-      var directionColor=v24>v22?'var(--teal)':'var(--magenta)';
-      var arrow='<span style="color:'+directionColor+';font-weight:700;font-size:20px;margin:0 6px;vertical-align:middle">'+direction+'</span>';
-      return '<div class="trend"><span style="color:var(--faint);font-size:13px">nadawane dzieciom:</span> <b>'+nf(v22)+'</b> <span style="color:var(--faint);font-size:12px">(2022)</span> '+arrow+' <b>'+nf(v24)+'</b> <span style="color:var(--faint);font-size:12px">(2024)</span> <span style="color:'+directionColor+';font-weight:700;margin-left:8px">'+change+'%</span></div>';
+      if(!trend)return"";
+      var pts=[],k,yr,v;
+      for(k in trend){if(trend.hasOwnProperty(k)){yr=+k;v=+trend[k];if(yr&&!isNaN(v))pts.push([yr,v]);}}
+      if(pts.length<2)return"";
+      pts.sort(function(a,b){return a[0]-b[0];});
+      var first=pts[0],last=pts[pts.length-1],y0=first[0],y1=last[0];
+      var vmax=0,peak=first,i;
+      for(i=0;i<pts.length;i++){if(pts[i][1]>vmax)vmax=pts[i][1];if(pts[i][1]>peak[1])peak=pts[i];}
+      if(!vmax)return"";
+      // „ładny" krok skali i górna granica zaokrąglona w górę
+      function nice(x){var e=Math.floor(Math.log(x)/Math.LN10),f=x/Math.pow(10,e);return (f<1.5?1:f<3?2:f<7?5:10)*Math.pow(10,e);}
+      function nfk(n){if(n>=1000){var t=n/1000;return (t%1?t.toFixed(1).replace(".",","):t)+" tys.";}return ""+n;}
+      var step=nice(vmax/3),vtop=Math.ceil(vmax/step)*step;
+      var W=560,H=100,padL=42,padR=12,padT=12,padB=16;
+      var iw=W-padL-padR,ih=H-padT-padB,base=padT+ih;
+      function sx(y){return padL+(y1===y0?0:(y-y0)/(y1-y0)*iw);}
+      function sy(val){return padT+(1-val/vtop)*ih;}
+      function xy(p){return sx(p[0]).toFixed(1)+","+sy(p[1]).toFixed(1);}
+      var g="";
+      // poziome podziałki skali z podpisami wartości
+      for(var t=0;t<=vtop+0.5;t+=step){
+        var gy=sy(t).toFixed(1);
+        g+='<line class="'+(t===0?"trend-axis":"trend-grid")+'" x1="'+padL+'" y1="'+gy+'" x2="'+(W-padR)+'" y2="'+gy+'"/>';
+        g+='<text class="trend-tick" x="'+(padL-6)+'" y="'+gy+'" text-anchor="end" dominant-baseline="middle">'+nfk(t)+'</text>';
+      }
+      // ciągi lat rozdzielone lukami (np. 2019→2024)
+      var runs=[[first]];
+      for(i=1;i<pts.length;i++){
+        if(pts[i][0]-pts[i-1][0]>1)runs.push([pts[i]]);
+        else runs[runs.length-1].push(pts[i]);
+      }
+      // wypełnienie pola pod wykresem
+      g+='<polygon class="trend-area" points="'+sx(y0).toFixed(1)+","+base+" "+
+         pts.map(xy).join(" ")+" "+sx(y1).toFixed(1)+","+base+'"/>';
+      // przerywane łączniki przez luki w danych
+      for(i=1;i<runs.length;i++){
+        var a=runs[i-1][runs[i-1].length-1],b=runs[i][0];
+        g+='<line class="trend-gap" x1="'+sx(a[0]).toFixed(1)+'" y1="'+sy(a[1]).toFixed(1)+
+           '" x2="'+sx(b[0]).toFixed(1)+'" y2="'+sy(b[1]).toFixed(1)+'"/>';
+      }
+      // ciągła linia dla każdego ciągu lat
+      runs.forEach(function(run){
+        if(run.length>1)g+='<polyline class="trend-line" points="'+run.map(xy).join(" ")+'"/>';
+      });
+      // wyróżnione punkty: start, koniec, szczyt
+      g+='<circle class="trend-dot" cx="'+sx(first[0]).toFixed(1)+'" cy="'+sy(first[1]).toFixed(1)+'" r="3"/>';
+      g+='<circle class="trend-dot" cx="'+sx(last[0]).toFixed(1)+'" cy="'+sy(last[1]).toFixed(1)+'" r="3"/>';
+      g+='<circle class="trend-peak" cx="'+sx(peak[0]).toFixed(1)+'" cy="'+sy(peak[1]).toFixed(1)+'" r="3.6"/>';
+      // podpisy lat na osi X (start, co kilka lat, koniec) + kreski podziałki
+      var yspan=y1-y0,ystep=yspan>20?5:yspan>8?2:1,yticks=[y0],yy;
+      for(yy=Math.ceil((y0+1)/ystep)*ystep;yy<y1;yy+=ystep){if(y1-yy>=2)yticks.push(yy);}
+      yticks.push(y1);
+      yticks.forEach(function(yv){
+        var xx=sx(yv),anc=yv===y0?"start":(yv===y1?"end":"middle");
+        g+='<line class="trend-grid" x1="'+xx.toFixed(1)+'" y1="'+base+'" x2="'+xx.toFixed(1)+'" y2="'+(base+3)+'"/>';
+        g+='<text class="trend-lbl" x="'+xx.toFixed(1)+'" y="'+(base+13)+'" text-anchor="'+anc+'">'+yv+'</text>';
+      });
+      // cele najazdu (interaktywne dymki, obsługa w mouseover) + ruchomy znacznik
+      pts.forEach(function(p){
+        g+='<circle class="trend-hit" cx="'+sx(p[0]).toFixed(1)+'" cy="'+sy(p[1]).toFixed(1)+'" r="10" data-y="'+p[0]+'" data-v="'+nf(p[1])+'"/>';
+      });
+      g+='<circle class="trend-cursor" r="4" cx="0" cy="0" style="display:none"/>';
+      var change=first[1]?Math.round((last[1]-first[1])/first[1]*100):null;
+      var up=change>=0,col=up?'var(--teal)':'var(--magenta)';
+      var foot='<div class="trend-foot">'+
+        '<span>szczyt: <b>'+peak[0]+'</b> ('+nf(peak[1])+')</span>'+
+        '<span>'+last[0]+': <b>'+nf(last[1])+'</b></span>'+
+        (change===null?'':'<span style="color:'+col+';font-weight:700">'+(up?'↗ +':'↘ ')+change+'% od '+first[0]+'</span>')+
+        '</div>';
+      return '<div class="trend">'+
+        '<svg viewBox="0 0 '+W+' '+H+'" class="trend-svg" role="img" aria-label="Trend nadań imienia od '+y0+' do '+y1+', szczyt w '+peak[0]+'">'+g+'</svg>'+
+        foot+'</div>';
     }
     function unisexPeselDetail(r){
       var src=r._src||{};
@@ -960,6 +1041,33 @@
         },100);
       }
     }
+  });
+  // interaktywne dymki na wykresie trendu (delegacja; CSP-safe, bez inline handlerów)
+  var trendTip=document.createElement("div");trendTip.className="trend-tip";trendTip.style.display="none";
+  document.body.appendChild(trendTip);
+  var trendCur=null;
+  function hideTrendTip(){trendTip.style.display="none";if(trendCur){trendCur.style.display="none";trendCur=null;}}
+  function placeTrendTip(e){
+    var below=e.clientY<80;
+    trendTip.style.left=e.clientX+"px";
+    trendTip.style.top=(e.clientY+(below?16:-10))+"px";
+    trendTip.style.transform=below?"translate(-50%,0)":"translate(-50%,-100%)";
+  }
+  rowsEl.addEventListener("mouseover",function(e){
+    var h=e.target.closest&&e.target.closest(".trend-hit");if(!h)return;
+    trendTip.innerHTML='<b>'+h.getAttribute("data-v")+'</b><span>'+h.getAttribute("data-y")+'</span>';
+    trendTip.style.display="";placeTrendTip(e);
+    var svg=h.ownerSVGElement,c=svg&&svg.querySelector(".trend-cursor");
+    if(c){c.setAttribute("cx",h.getAttribute("cx"));c.setAttribute("cy",h.getAttribute("cy"));c.style.display="";trendCur=c;}
+  });
+  rowsEl.addEventListener("mousemove",function(e){
+    if(trendTip.style.display==="none")return;
+    if(e.target.closest&&e.target.closest(".trend-hit"))placeTrendTip(e);else hideTrendTip();
+  });
+  rowsEl.addEventListener("mouseout",function(e){
+    var h=e.target.closest&&e.target.closest(".trend-hit");if(!h)return;
+    var to=e.relatedTarget;if(to&&to.closest&&to.closest(".trend-hit"))return;
+    hideTrendTip();
   });
   prevBtn.addEventListener("click",function(){if(page>0){page--;render();}});
   nextBtn.addEventListener("click",function(){if(page<Math.ceil((sorted(filtered()).length-startOffset)/PER_PAGE)-1){page++;render();}});
