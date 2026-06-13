@@ -8,3 +8,5 @@ CLAUDE.md
 INSTRUCTIONS.md
 .ftp-creds
 .opencode/
+.agents/
+.cache_wiki/
