@@ -128,7 +128,8 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
 tr.detail td{padding:0 14px;background:var(--surface-2)}
 .detail-inner{display:grid;grid-template-rows:0fr;transition:grid-template-rows .28s ease-out}
 .detail-inner > div{overflow:hidden;min-height:0}
-tr.detail.open .detail-inner{grid-template-rows:1fr}
+tr.detail.open .detail-inner,
+.detail-inner.open{grid-template-rows:1fr}
 
 /* ── Skeleton Loadery ── */
 .skeleton{height:20px;margin-bottom:8px;border-radius:4px;

@@ -52,6 +52,35 @@
       <p class="lede">Imiona z rejestru PESEL i niebinarne z zaimki.pl <br /> Od transów dla transów 🏳️‍⚧️</p>
     </header>
 
+    <div class="help-card-container" style="margin-bottom: 24px;">
+      <button type="button" id="help-card-toggle" class="btn-ghost" style="font-size: 13.5px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;">
+        <span>💡 Pomoc i funkcje (kliknij, aby rozwinąć)</span>
+        <span id="help-card-arrow" style="transition: transform 0.2s; display: inline-block;">▼</span>
+      </button>
+      <div id="help-card-content" class="detail-inner" style="margin-top: 10px;">
+        <div>
+          <div style="background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 12px; padding: 18px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
+            <div>
+              <h4 style="margin: 0 0 8px; font-size: 14px; font-family: var(--display); color: var(--accent); font-weight: 700;">⭐️ Ulubione (Shortlista)</h4>
+              <p style="margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5;">Kliknij gwiazdkę <code style="font-family: inherit;">☆</code> obok dowolnego imienia na liście, aby dodać je do schowka. Kliknij przycisk <code style="font-family: inherit;">★</code> w wyszukiwarce, by wyświetlić tylko swoje ulubione imiona!</p>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 8px; font-size: 14px; font-family: var(--display); color: var(--accent); font-weight: 700;">🔍 Zaawansowany Regex</h4>
+              <p style="margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5;">Kliknij przycisk <code style="font-family: inherit;">.*</code> i wpisz wzorzec (np. <code style="font-family: monospace;">^A</code> na zaczynające się na A, lub <code style="font-family: monospace;">a$</code> na kończące się na a). Kliknij <code style="font-family: inherit;">?</code> po szczegóły.</p>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 8px; font-size: 14px; font-family: var(--display); color: var(--accent); font-weight: 700;">📊 Wykresy i Interakcja</h4>
+              <p style="margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5;">Rozwiń dowolny wiersz, klikając na niego. Przesuń kursor nad wykres trendu, aby zobaczyć precyzyjną liczbę nadań imienia rok po roku (2000-2024).</p>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 8px; font-size: 14px; font-family: var(--display); color: var(--accent); font-weight: 700;">🎶 Sugestie drugich imion</h4>
+              <p style="margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5;">W panelu szczegółów algorytm automatycznie podpowiada drugie imiona o idealnej rytmice sylabowej i pochodzeniu dopasowanym do Twojego pierwszego wyboru.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <main id="main" aria-label="Wyszukiwarka imion">
       <h2 class="sr-only">Wyszukiwarka imion</h2>
       <div class="controls">

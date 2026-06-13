@@ -56,6 +56,10 @@ var HEADER_NONBINARY = '<th tabindex="0" data-key="imie">imię <span class="arr"
 var SHARD_MAP = { 'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n', 'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z' };
 
 // ── Referencje do elementów DOM ──
+var helpCardToggle = document.getElementById("help-card-toggle");
+var helpCardContent = document.getElementById("help-card-content");
+var helpCardArrow = document.getElementById("help-card-arrow");
+
 var tableBody = document.getElementById("rows");
 var countElement = document.getElementById("count");
 var headerRow = document.getElementById("head");

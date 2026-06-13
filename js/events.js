@@ -263,6 +263,17 @@ randomButton.addEventListener("click", function () {
 addEventListener("scroll", function () { backToTopButton.style.display = scrollY > 500 ? "block" : "none"; });
 backToTopButton.addEventListener("click", function () { scrollTo({ top: 0, behavior: "smooth" }); });
 
+// Pomoc i ściąga funkcji (Help Card)
+if (helpCardToggle && helpCardContent) {
+  helpCardToggle.addEventListener("click", function() {
+    var open = helpCardContent.classList.toggle("open");
+    helpCardToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    if (helpCardArrow) {
+      helpCardArrow.style.transform = open ? "rotate(180deg)" : "rotate(0deg)";
+    }
+  });
+}
+
 // ── Inicjalizacja Infinite Scroll ──
 if ('IntersectionObserver' in window) {
   var observer = new IntersectionObserver(function(entries) {
