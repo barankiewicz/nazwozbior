@@ -21,7 +21,9 @@ Uruchomienie:
 """
 
 import os, re, csv, json, time, html, argparse, sys
+import hashlib, unicodedata, collections
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     import requests
@@ -38,6 +40,10 @@ DATASET_ID     = 1667
 LIMIT_NA_PLEC  = None
 WIKI_LANG      = "pl"
 RAW_DIR        = "raw_pesel"
+TRENDY_CSV     = f"{RAW_DIR}/imiona_2000-2019.csv"   # Rok,Imię,Liczba,Płeć (M/K)
+TRENDY_2024_M  = f"{RAW_DIR}/imiona_2024_m.xlsx"
+TRENDY_2024_Z  = f"{RAW_DIR}/imiona_2024_z.xlsx"
+TRENDY_JSON    = f"{RAW_DIR}/trends_2000-2024.json" # scalony cache {imię:{rok:liczba}}
 CACHE_DIR      = ".cache_wiki"
 USER_AGENT     = ("Nazwozbior/1.0 (https://github.com/barankiewicz; "
                   "barankiewicz@protonmail.ch)")
@@ -51,6 +57,7 @@ API_EN         = "https://en.wikipedia.org/w/api.php"
 API_UK         = "https://uk.wikipedia.org/w/api.php"
 API_RU         = "https://ru.wikipedia.org/w/api.php"
 API_VI         = "https://vi.wikipedia.org/w/api.php"
+API_BE         = "https://be.wikipedia.org/w/api.php"
 API_RMY        = "https://rmy.wikipedia.org/w/api.php"
 WD_SPARQL      = "https://query.wikidata.org/sparql"
 ZAIMKI_API     = "https://zaimki.pl/api/names"
@@ -333,6 +340,18 @@ def shard_opisow(imie):
     return c if (c.isascii() and c.isalpha() and len(c) == 1) else "_"
 
 
+# Placeholdery z rejestru PESEL udające imię — odsiewamy je przy wczytywaniu.
+JUNK_NAMES = {
+    "brak danych", "brak", "bd", "b/d", "b.d.", "nieznane", "nieznany",
+    "nieznana", "nn", "n/n", "xxx", "xx", "brak imienia", "bez imienia",
+    "imie", "imię", "-", "--", "...",
+}
+
+
+def is_junk_name(name):
+    return name.strip().casefold() in JUNK_NAMES
+
+
 def titlecase_pl(s):
     s = s.strip()
     out = []
@@ -353,7 +372,7 @@ def wczytaj_liczby(path):
         if not row or row[0] is None:
             continue
         name = str(row[0]).strip()
-        if not name:
+        if not name or is_junk_name(name):
             continue
         try:
             cnt = int(row[2])
@@ -363,6 +382,56 @@ def wczytaj_liczby(path):
         counts[name] = counts.get(name, 0) + cnt
     wb.close()
     return counts
+
+
+def wczytaj_trendy():
+    """Buduje {imię: {rok: liczba nadań}} z rocznikowych danych dane.gov.pl.
+
+    Źródła (raw_pesel/, nadania dzieciom wg roku urodzenia — INNY zbiór niż
+    rejestr osób żyjących z głównego pipeline'u):
+      • imiona_2000-2019.csv  — kolumny Rok,Imię,Liczba,Płeć; sumujemy obie płcie,
+      • imiona_2024_{m,z}.xlsx — suma męskich + żeńskich jako rok "2024".
+    Klucz to imię w titlecase (jak w datasetach), więc ten sam trend trafia do
+    imienia w obu datasetach (męskim i żeńskim). Wynik (re)zapisujemy do
+    trends_2000-2024.json; gdy brak surowych plików, czytamy ten gotowy plik.
+    """
+    trendy = {}
+    have_raw = False
+    if os.path.exists(TRENDY_CSV):
+        have_raw = True
+        with open(TRENDY_CSV, encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                try:
+                    rok, cnt = str(int(row["Rok"])), int(row["Liczba"])
+                except (TypeError, ValueError, KeyError):
+                    continue
+                imie = titlecase_pl(row.get("Imię", ""))
+                if not imie or is_junk_name(imie):
+                    continue
+                d = trendy.setdefault(imie, {})
+                d[rok] = d.get(rok, 0) + cnt
+    for path in (TRENDY_2024_M, TRENDY_2024_Z):
+        if os.path.exists(path):
+            have_raw = True
+            for imie, cnt in wczytaj_liczby(path).items():  # wczytaj_liczby już odsiewa śmieci
+                d = trendy.setdefault(imie, {})
+                d["2024"] = d.get("2024", 0) + cnt
+    if have_raw:
+        # lata rosnąco (rok jest stringiem, ale to czterocyfrowe liczby)
+        trendy = {n: {y: v[y] for y in sorted(v)} for n, v in trendy.items()}
+        try:
+            with open(TRENDY_JSON, "w", encoding="utf-8") as f:
+                json.dump(trendy, f, ensure_ascii=False)
+        except OSError:
+            pass
+        return trendy
+    if os.path.exists(TRENDY_JSON):
+        try:
+            with open(TRENDY_JSON, encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            pass
+    return {}
 
 
 def pobierz_zasoby():
@@ -1150,6 +1219,8 @@ class NameDataset:
                     r["zrodlo"] = old["zrodlo"]
                 if old.get("zrodlo_baza"):
                     r["zrodlo_baza"] = old["zrodlo_baza"]
+                if old.get("trend"):   # _apply_trends nadpisze, jeśli są źródła
+                    r["trend"] = old["trend"]
 
     def save(self, base):
         cols = ["imie", "wystapienia_pierwsze", "wystapienia_drugie", "pochodzenie", "opis_html"]
@@ -1205,6 +1276,9 @@ class DatasetBuilder:
     def run(self):
         self.args = self._parse_args()
         os.makedirs(RAW_DIR, exist_ok=True)
+        if self.args.tylko_wzbogac:
+            self._run_tylko_wzbogac()
+            return
         self._handle_od_nowa()
         self._handle_no_sleep()
         self._load_existing()
@@ -1212,6 +1286,7 @@ class DatasetBuilder:
         self._build_datasets()
         self._merge_existing()
         self._apply_limit()
+        self._apply_trends()
         self._setup_api_clients()
         self._run_enrichment()
         self._inherit_origins()
@@ -1221,6 +1296,43 @@ class DatasetBuilder:
         self._build_niebinarne()
         self._print_final_stats()
         self._cleanup_rows()
+        self._run_wzbogacanie()   # druga faza: WIKT-CAT, warianty, tłum., dziedziczenie
+        self._save_all()
+
+    def _run_wzbogacanie(self):
+        """Druga faza wzbogacania (dawniej wzbogac_opisy.py): kategorie
+        en.Wiktionary, warianty pisowni, tłumaczenia EN/UK/RU/BE/VI (MinT),
+        korekty pochodzeń i dziedziczenie opisu (baza + imiona złożone).
+        Uruchamiana PO _cleanup_rows, bo ustawia `zrodlo` wprost."""
+        all_rows = self.meskie.rows + self.zenskie.rows
+        faza_translit(all_rows)
+        faza_wikt_categories(self.cache, self.session,
+                             [r for r in all_rows if not r.get("pochodzenie")])
+        faza_warianty(all_rows)
+        faza_tlumaczenia_en(self.cache, self.session, all_rows)
+        faza_foreign_wikis(self.cache, self.session, all_rows)
+        faza_korekty(all_rows)
+        faza_dziedzicz_opis(all_rows)
+
+    def _run_tylko_wzbogac(self):
+        """Tryb --tylko-wzbogac: druga faza na istniejących dataset_*.json,
+        bez pełnego rebuildu PESEL/Wikipedii."""
+        print("[tylko-wzbogac] Wczytuję istniejące datasety…")
+        m = self._wczytaj_json_dataset("dataset_meskie.json")
+        z = self._wczytaj_json_dataset("dataset_zenskie.json")
+        if m is None or z is None:
+            sys.exit("Brak dataset_meskie.json/dataset_zenskie.json — "
+                     "uruchom najpierw pełny build.")
+        n0 = len(m) + len(z)
+        m = [r for r in m if not is_junk_name(r["imie"])]
+        z = [r for r in z if not is_junk_name(r["imie"])]
+        if n0 - len(m) - len(z):
+            print(f"      odsiano {n0 - len(m) - len(z)} placeholderów")
+        self.meskie, self.zenskie = NameDataset(m), NameDataset(z)
+        self.niebinarne = self._wczytaj_json_dataset("dataset_niebinarne.json") or []
+        self.session = requests.Session()
+        self.session.headers.update({"User-Agent": USER_AGENT})
+        self._run_wzbogacanie()
         self._save_all()
 
     def _parse_args(self):
@@ -1253,8 +1365,13 @@ class DatasetBuilder:
                         help="Pomin Wikislowniki (en/pl Wiktionary).")
         ap.add_argument("--skip-zaimki", action="store_true",
                         help="Pomin pobieranie imion niebinarnych z zaimki.pl.")
+        ap.add_argument("--skip-trendy", action="store_true",
+                        help="Pomin dopinanie trendow nadan (raw_pesel/imiona_*).")
         ap.add_argument("--od-nowa", action="store_true",
                         help="Usuwa cache Wikipedii i surowe pliki PESEL, buduje od nowa.")
+        ap.add_argument("--tylko-wzbogac", action="store_true",
+                        help="Tylko druga faza (WIKT-CAT/warianty/tłumaczenia/"
+                             "dziedziczenie) na istniejących dataset_*.json, bez rebuildu.")
         return ap.parse_args()
 
     def _handle_od_nowa(self):
@@ -1336,6 +1453,23 @@ class DatasetBuilder:
             print(f"      LIMIT: tylko {self.args.limit} najpopularniejszych kazdej plci")
             self.meskie.limit(self.args.limit)
             self.zenskie.limit(self.args.limit)
+
+    def _apply_trends(self):
+        """Dopina pole `trend` ({rok: liczba nadań}) z danych rocznikowych."""
+        if self.args.skip_trendy:
+            return
+        trendy = wczytaj_trendy()
+        if not trendy:
+            print("      Trendy: brak danych rocznikowych w raw_pesel/, pomijam.")
+            return
+        n = 0
+        for ds in (self.meskie, self.zenskie):
+            for r in ds.rows:
+                t = trendy.get(r["imie"])
+                if t:
+                    r["trend"] = t
+                    n += 1
+        print(f"      Trendy: dopieto do {n} wierszy (z {len(trendy)} imion w zrodle)")
 
     def _setup_api_clients(self):
         self.session = requests.Session()
@@ -2166,6 +2300,26 @@ class DatasetBuilder:
         "yevhen": "eugeniusz", "eduard": "edward", "artem": "artem",
         "denys": "dionizy", "kyrylo": "cyryl", "nazariy": "nazariusz",
         "oleg": "oleg", "mykhaylo": "michał", "oleksiy": "aleksy",
+        # --- dopisane: częste braki z pasma 10–1000 (ukr./biał.) ---
+        # żeńskie
+        "veranika": "weronika", "lizaveta": "elżbieta", "dziyana": "diana",
+        "rehina": "regina", "bozhena": "bożena", "valiantsina": "walentyna",
+        "alesia": "aleksandra", "aryna": "irena", "andriana": "adriana",
+        "nastassia": "anastazja", "nastasia": "anastazja", "katsiaryna": "katarzyna",
+        "volha": "olga", "yauheniia": "eugenia", "ivanna": "joanna",
+        "miroslava": "mirosława", "myroslava": "mirosława", "stanislava": "stanisława",
+        "uliana": "julianna",
+        # męskie
+        "heronim": "hieronim", "zbyszek": "zbigniew", "artsem": "artem",
+        "artom": "artem", "tsimafei": "tymoteusz", "tsimur": "tymur",
+        "ievgenii": "eugeniusz", "yevgenii": "eugeniusz", "hlieb": "gleb",
+        "heorhi": "jerzy", "markiian": "marcjan", "dmytrii": "dymitr",
+        "andrian": "adrian", "ustym": "justyn", "valiantsin": "walenty",
+        "uladzimir": "włodzimierz", "dzmitry": "dymitr", "dzmitryi": "dymitr",
+        "mikalai": "mikołaj", "yauhen": "eugeniusz", "siarhei": "sergiusz",
+        "andrei": "andrzej", "aliaksandr": "aleksander", "pavel": "paweł",
+        "anton": "antoni", "arkadii": "arkadiusz", "matvii": "mateusz",
+        "mykyta": "nikita", "bohdanna": "bogdana", "yan": "jan",
     }
 
     def _apply_transliteration(self):
@@ -2322,7 +2476,7 @@ class DatasetBuilder:
         if self.niebinarne:
             with open("dataset_niebinarne.json", "w", encoding="utf-8") as f:
                 json.dump(self.niebinarne, f, ensure_ascii=False)
-        self._zapisz_dane_js()
+        regeneruj_dane_js(self.meskie.rows, self.zenskie.rows)
         n_op = sum(1 for r in self.meskie.rows + self.zenskie.rows if r.get("opis_html"))
         n_po = sum(1 for r in self.meskie.rows + self.zenskie.rows if r.get("pochodzenie"))
         print(f"GOTOWE. Imion z opisem: {n_op}, z pochodzeniem: {n_po}, "
@@ -2332,47 +2486,691 @@ class DatasetBuilder:
             print("WYŁĄCZAM…")
             os.system("shutdown -h now")
 
-    def _zapisz_dane_js(self):
-        """dane.js = rdzeń (bez opisów), opisy/<litera>.js = leniwe shardy.
 
-        Opisy to ~40% danych, a użytkownik czyta ich kilkanaście na sesję —
-        strona dociąga shard dopiero przy rozwinięciu wiersza.
-        """
-        import shutil
-        shards = {}
 
-        def bez_opisow(rows):
-            out = []
-            for r in rows:
-                opis = r.get("opis_html")
-                if opis:
-                    shards.setdefault(shard_opisow(r["imie"]), {})[r["imie"]] = opis
-                out.append({k: v for k, v in r.items() if k != "opis_html"})
-            return out
+# =========================================================================
+# Druga faza wzbogacania (scalone z wzbogac_opisy.py)
+# =========================================================================
 
-        m = bez_opisow(self.meskie.rows)
-        z = bez_opisow(self.zenskie.rows)
-        with open("dane.js", "w", encoding="utf-8") as f:
-            f.write("// Wygenerowane przez zbuduj_dataset.py — dane dla strony.\n")
-            f.write("window.DANE_MESKIE = ")
-            json.dump(m, f, ensure_ascii=False)
-            f.write(";\n window.DANE_ZENSKIE = ")
-            json.dump(z, f, ensure_ascii=False)
-            f.write(";\n window.DANE_NIEBINARNE = ")
-            json.dump(self.niebinarne, f, ensure_ascii=False)
+MINT_URL = "https://translate.wmcloud.org/api/translate"
+MINT_WORKERS = 4
+MINT_SLEEP = 0.15   # per-worker
+
+# ---- Wiktionary term → origin slug map -----------------------------------
+# Exact matching for category text extracted from "terms derived from X"
+# patterns.  Broader matches fall through to EN_CATEGORY_ORIGINS substring.
+WIKT_TERM_MAP = {
+    "Ancient Greek":        "greckie",
+    "Koine Greek":          "greckie",
+    "Latin":                "lacinskie",
+    "Late Latin":           "lacinskie",
+    "Medieval Latin":       "lacinskie",
+    "Hebrew":               "hebrajskie",
+    "Biblical Hebrew":      "hebrajskie",
+    "Germanic":             "germanskie",
+    "German":               "germanskie",
+    "Old High German":      "germanskie",
+    "Proto-Germanic":       "germanskie",
+    "Old Norse":            "skandynawskie",
+    "Old English":          "anglosaskie",
+    "English":              "angielskie",
+    "Celtic":               "celtyckie",
+    "Scottish Gaelic":      "celtyckie",
+    "Arabic":               "arabskie",
+    "Persian":              "perskie",
+    "Turkish":              "tureckie",
+    "Proto-Slavic":         "slowianskie",
+    "Old Church Slavonic":  "slowianskie",
+    "Slavic":               "slowianskie",
+    "Old Czech":            "slowianskie",
+    "Czech":                "slowianskie",
+    "Russian":              "rosyjskie",
+    "Ukrainian":            "ukrainskie",
+    "French":               "francuskie",
+    "Italian":              "wloskie",
+    "Spanish":              "hiszpanskie",
+    "Hungarian":            "wegierskie",
+    "Finnish":              "finskie",
+    "Estonian":             "finskie",
+    "Sanskrit":             "sanskryckie",
+    "Japanese":             "japonskie",
+    "Chinese":              "chinskie",
+    "Aramaic":              "aramejskie",
+    "Armenian":             "ormianskie",
+    "Georgian":             "gruzinskie",
+    "Egyptian":             "egipskie",
+    "Etruscan":             "etruskie",
+    "Lithuanian":           "litewskie",
+}
+
+_WIKT_PATTERNS = [
+    re.compile(r'terms (?:derived|borrowed|inherited) from (.+)$', re.I),
+    re.compile(r'given names from (.+)$', re.I),
+]
+
+
+def _wikt_cat_to_origin(categories):
+    """Extract origin slug from a list of en.Wiktionary category titles.
+    Prefers Polish-language categories first, then falls back to others."""
+    polish = [c for c in categories if c.lower().startswith("polish")]
+    other = [c for c in categories if not c.lower().startswith("polish")]
+    for cat in polish + other:
+        for pat in _WIKT_PATTERNS:
+            m = pat.search(cat)
+            if not m:
+                continue
+            term = m.group(1).strip()
+            if term in WIKT_TERM_MAP:
+                return WIKT_TERM_MAP[term]
+            low = term.lower()
+            for kw, origin in EN_CATEGORY_ORIGINS:
+                if kw in low:
+                    return origin
+    return ""
+
+
+# ---- helpers ------------------------------------------------------------
+
+def tot(r):
+    return r["wystapienia_pierwsze"] + r["wystapienia_drugie"]
+
+
+def fold(s):
+    s = s.lower().replace("ł", "l")
+    return "".join(c for c in unicodedata.normalize("NFKD", s)
+                   if not unicodedata.combining(c))
+
+
+def trim_extract(text):
+    """Przytnij extract do 1-2 zdań, max 450 znaków.  Usuwa IPA/wymowę."""
+    text = re.sub(r'\([^)]*(?:pronounced|IPA|listen|\[ˈ)[^)]*\)', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    sents = re.split(r'(?<=[.!?])\s+', text)
+    result = " ".join(sents[:2]).strip()
+    if len(result) > 450:
+        result = result[:447].rsplit(' ', 1)[0] + "…"
+    return result
+
+
+def html_escape(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def nf(n):
+    return f"{n:,}".replace(",", "\u00a0")
+
+
+# =========================================================================
+# Faza 0: transliteracja słownikowa (UK_BE_TRANSLIT)
+# =========================================================================
+
+def faza_translit(all_rows):
+    """Stosuje słownik transliteracji z zbuduj_dataset (UK_BE_TRANSLIT), by
+    rozszerzenia słownika działały też przy samym wzbogac_opisy.py (bez
+    pełnego rebuildu). Baza musi mieć już ustalone pochodzenie."""
+    print("=" * 60)
+    print("FAZA 0: transliteracja słownikowa")
+    print("=" * 60)
+    table = DatasetBuilder.UK_BE_TRANSLIT
+    origin_by = {}
+    for r in all_rows:
+        if r.get("pochodzenie"):
+            origin_by.setdefault(r["imie"].casefold(), (r["pochodzenie"], r["imie"]))
+    n = 0
+    for r in all_rows:
+        if r.get("pochodzenie"):
+            continue
+        base = table.get(r["imie"].casefold())
+        if not base:
+            continue
+        info = origin_by.get(base.casefold())
+        if info:
+            r["pochodzenie"], r["zrodlo"], r["zrodlo_baza"] = info[0], "TRANS", info[1]
+            n += 1
+    print(f"  ✓ Transliteracja (słownik): +{n} pochodzeń\n")
+    return n
+
+
+# =========================================================================
+# Faza 1: Wiktionary categories → pochodzenie
+# =========================================================================
+
+WIKT_BATCH = 20
+
+def faza_wikt_categories(cache_mgr, session, rows_without_origin):
+    """Batch-query en.Wiktionary categories for each name in the dataset.
+    Parse category titles like 'Polish terms derived from Latin' to extract
+    the origin language, map it to a slug via WIKT_TERM_MAP + EN_CATEGORY_ORIGINS."""
+    print("=" * 60)
+    print("FAZA 1: Kategorie en.Wiktionary → pochodzenie")
+    print("=" * 60)
+
+    cat_cache = cache_mgr.load("wikt_categories.json") or {}
+    api = "https://en.wiktionary.org/w/api.php"
+    rl = RateLimiter(95, 60)
+
+    need = [r for r in rows_without_origin if r["imie"] not in cat_cache]
+    print(f"  Imion bez pochodzenia: {len(rows_without_origin)} "
+          f"(w cache: {len(rows_without_origin) - len(need)}, "
+          f"do pobrania: {len(need)})")
+
+    if need:
+        for i in range(0, len(need), WIKT_BATCH):
+            batch = need[i:i + WIKT_BATCH]
+            names = [r["imie"] for r in batch]
+            rl.wait_if_needed()
+            try:
+                resp = session.get(api, params={
+                    "action": "query", "format": "json",
+                    "formatversion": 2,
+                    "prop": "categories", "clshow": "!hidden",
+                    "cllimit": "max", "redirects": 1,
+                    "titles": "|".join(names),
+                }, timeout=30)
+                data = resp.json()
+            except Exception as e:
+                print(f"    błąd batch {i // WIKT_BATCH}: {e}")
+                for r in batch:
+                    cat_cache.setdefault(r["imie"], [])
+                continue
+
+            for pg in data.get("query", {}).get("pages", []):
+                title = pg.get("title", "")
+                cats = [c["title"] for c in pg.get("categories", [])]
+                cat_cache[title] = cats
+            for r in batch:
+                cat_cache.setdefault(r["imie"], [])
+
+            if (i // WIKT_BATCH) % 10 == 0:
+                cache_mgr.save("wikt_categories.json", cat_cache)
+                done = min(i + WIKT_BATCH, len(need))
+                print(f"    ...{done}/{len(need)}")
+
+        cache_mgr.save("wikt_categories.json", cat_cache)
+
+    applied = 0
+    for r in rows_without_origin:
+        cats = cat_cache.get(r["imie"], [])
+        origin = _wikt_cat_to_origin(cats)
+        if origin:
+            r["pochodzenie"] = origin
+            r["zrodlo"] = "WIKT-CAT"
+            applied += 1
+
+    print(f"  ✓ Wiktionary categories: +{applied} nowych pochodzeń\n")
+    return applied
+
+
+# =========================================================================
+# Faza 2: Warianty lokalne → dziedziczenie pochodzenia
+# =========================================================================
+
+def faza_warianty(all_rows):
+    """Dziedziczenie pochodzenia po znanych imionach przez warianty pisowni."""
+    print("=" * 60)
+    print("FAZA 2: Warianty lokalne → pochodzenie")
+    print("=" * 60)
+
+    known = {}
+    for r in all_rows:
+        if r.get("pochodzenie"):
+            known.setdefault(fold(r["imie"]), (r["pochodzenie"], r["imie"]))
+
+    def variants(name):
+        f = fold(name)
+        out = {f}
+        out.add(re.sub(r'(.)\1', r'\1', f))            # Anna→Ana
+        for src, dst in [
+            ("y", "i"), ("i", "y"), ("v", "w"), ("w", "v"),
+            ("x", "ks"), ("ks", "x"), ("ph", "f"), ("f", "ph"),
+            ("th", "t"), ("c", "k"), ("k", "c"),
+            ("sz", "sh"), ("sh", "sz"), ("cz", "ch"), ("ch", "cz"),
+            ("ij", "i"), ("ii", "i"), ("iya", "ia"), ("iy", "i"),
+            # transliteracja cyrylicy (ukr./biał./ros. romanizacje)
+            ("kh", "ch"), ("ts", "c"), ("zh", "z"), ("shch", "szcz"),
+            ("ya", "ja"), ("yu", "ju"), ("ye", "je"), ("jo", "io"),
+        ]:
+            out.add(f.replace(src, dst))
+        # trailing vowel
+        if len(f) > 3 and f[-1] in "aeio":
+            out.add(f[:-1])
+        if len(f) > 3 and f[-1] not in "aeiouy":
+            for v in "aei":
+                out.add(f + v)
+        return out - {f}
+
+    applied = 0
+    for _pass in range(3):
+        changed = 0
+        for r in all_rows:
+            if r.get("pochodzenie"):
+                continue
+            if len(r["imie"]) < 3:
+                continue
+            for v in variants(r["imie"]):
+                if v in known:
+                    origin, base = known[v]
+                    r["pochodzenie"] = origin
+                    r["zrodlo"] = "WAR"
+                    r["zrodlo_baza"] = base
+                    known.setdefault(fold(r["imie"]), (origin, r["imie"]))
+                    changed += 1
+                    applied += 1
+                    break
+            if not changed:
+                break
+        if not changed:
+            break
+
+    print(f"  ✓ Warianty lokalne: +{applied} nowych pochodzeń\n")
+    return applied
+
+
+# =========================================================================
+# Faza 3: Tłumaczenia EN wiki extractów → opisy + pochodzenie
+# =========================================================================
+
+def faza_tlumaczenia_en(cache_mgr, session, all_rows):
+    """Tłumaczy EN Wikipedia extracty na PL przez MinT."""
+    print("=" * 60)
+    print("FAZA 3: Tłumaczenia EN→PL (MinT)")
+    print("=" * 60)
+
+    en_cache = cache_mgr.load("phase_en.json") or {}
+    tl_cache = cache_mgr.load("tlumaczenia_en.json") or {}
+
+    # Kandydaci: brak opisu, EN is_name z extractem
+    candidates = []
+    for r in all_rows:
+        if r.get("opis_html"):
+            continue
+        en = en_cache.get(r["imie"], {})
+        if en.get("is_name") and en.get("extract") and len(en["extract"]) >= 30:
+            trimmed = trim_extract(en["extract"])
+            if len(trimmed) >= 20:
+                candidates.append((r, trimmed))
+
+    already = sum(1 for _, t in candidates
+                  if hashlib.md5(("en:" + t).encode()).hexdigest() in tl_cache)
+    print(f"  Kandydatów: {len(candidates)} ({already} już w cache tłumaczeń)")
+
+    if not candidates:
+        print("  Nic do tłumaczenia.\n")
+        return 0, 0
+
+    save_lock = __import__("threading").Lock()
+    counter = {"opis": 0, "origin": 0, "done": 0, "errs": 0}
+
+    def translate_one(args):
+        r, trimmed = args
+        key = hashlib.md5(("en:" + trimmed).encode()).hexdigest()
+        with save_lock:
+            cached = tl_cache.get(key)
+        if cached:
+            translated = cached
+        else:
+            time.sleep(MINT_SLEEP)
+            try:
+                resp = session.post(MINT_URL, json={
+                    "source_language": "en", "target_language": "pl",
+                    "format": "text", "content": trimmed,
+                }, timeout=90)
+                resp.raise_for_status()
+                translated = resp.json().get("translation", "")
+            except Exception as e:
+                counter["errs"] += 1
+                return
+            with save_lock:
+                tl_cache[key] = translated
+
+        if not translated or len(translated) < 15:
+            return
+
+        r["opis_html"] = f"<p>{html_escape(translated)}</p>"
+        r["opis_zrodlo"] = "EN"
+        counter["opis"] += 1
+
+        if not r.get("pochodzenie"):
+            origin = wykryj_pochodzenie(translated)
+            if origin:
+                r["pochodzenie"] = origin
+                r["zrodlo"] = "EN-TL"
+                counter["origin"] += 1
+
+    # Concurrent MinT
+    with ThreadPoolExecutor(max_workers=MINT_WORKERS) as pool:
+        futures = {pool.submit(translate_one, c): i for i, c in enumerate(candidates)}
+        for future in as_completed(futures):
+            idx = futures[future]
+            counter["done"] += 1
+            try:
+                future.result()
+            except Exception:
+                counter["errs"] += 1
+            d = counter["done"]
+            if d % 200 == 0 or d == len(candidates):
+                with save_lock:
+                    cache_mgr.save("tlumaczenia_en.json", tl_cache)
+                print(f"    ...{d}/{len(candidates)}  "
+                      f"opisy:+{counter['opis']}  poch:+{counter['origin']}  "
+                      f"err:{counter['errs']}")
+
+    cache_mgr.save("tlumaczenia_en.json", tl_cache)
+    print(f"  ✓ Tłumaczenia EN: +{counter['opis']} opisów, "
+          f"+{counter['origin']} pochodzeń\n")
+    return counter["opis"], counter["origin"]
+
+
+# =========================================================================
+# Faza 4: Świeże extracty UK/RU/VI + tłumaczenie
+# =========================================================================
+
+def faza_foreign_wikis(cache_mgr, session, all_rows):
+    """Pobiera extracty z UK/RU/VI Wikipedia, tłumaczy na PL."""
+    print("=" * 60)
+    print("FAZA 4: UK/RU/VI Wikipedia + tłumaczenie MinT")
+    print("=" * 60)
+
+    tl_cache = cache_mgr.load("tlumaczenia_foreign.json") or {}
+    total_opis = 0
+    total_origin = 0
+
+    configs = [
+        ("uk", API_UK, "phase_uk_opisy.json"),
+        ("ru", API_RU, "phase_ru_opisy.json"),
+        ("be", API_BE, "phase_be_opisy.json"),
+        ("vi", API_VI, "phase_vi_opisy.json"),
+    ]
+
+    for lang, api_url, cache_name in configs:
+        wiki_cache = cache_mgr.load(cache_name) or {}
+
+        # Imiona bez opisu, ≥10 wystąpień, nie sprawdzone jeszcze
+        need = [r for r in all_rows
+                if not r.get("opis_html")
+                and r["imie"] not in wiki_cache
+                and tot(r) >= 10]
+
+        print(f"\n  {lang.upper()} Wikipedia: {len(need)} imion do sprawdzenia "
+              f"(w cache: {len(wiki_cache)})")
+        if not need:
+            continue
+
+        client = WikiAPIClient(
+            session,
+            RateLimiter(EN_RATE_LIMIT_REQ, EN_RATE_LIMIT_WIN),
+            base_url=api_url, maxlag=MAXLAG,
+        )
+
+        # Batch fetch extractów
+        for i in range(0, len(need), BATCH_SIZE):
+            batch = need[i:i + BATCH_SIZE]
+            batch_names = [r["imie"] for r in batch]
+            params = {
+                "action": "query", "format": "json", "formatversion": 2,
+                "prop": "extracts", "exintro": 1, "explaintext": 1,
+                "exlimit": "max", "redirects": 1,
+                "titles": "|".join(batch_names),
+            }
+            try:
+                data = client.get(params)
+            except Exception as e:
+                print(f"    błąd {lang.upper()} batch: {e}")
+                for n in batch_names:
+                    wiki_cache[n] = ""
+                continue
+            pages = data.get("query", {}).get("pages", [])
+            norm = {}
+            for rd in data.get("query", {}).get("redirects", []):
+                norm[rd["from"]] = rd["to"]
+            for nm in data.get("query", {}).get("normalized", []):
+                norm[nm["from"]] = nm["to"]
+            pg_by_title = {pg.get("title", ""): pg for pg in pages}
+            for n in batch_names:
+                t = norm.get(n, n)
+                pg = pg_by_title.get(t) or pg_by_title.get(n) or {}
+                wiki_cache[n] = pg.get("extract", "") or ""
+
+            if (i // BATCH_SIZE) % 20 == 0:
+                cache_mgr.save(cache_name, wiki_cache)
+                done = min(i + BATCH_SIZE, len(need))
+                print(f"    ...{done}/{len(need)}")
+
+        cache_mgr.save(cache_name, wiki_cache)
+
+        # Tłumacz extracty dla imion nadal bez opisu
+        to_translate = []
+        for r in all_rows:
+            if r.get("opis_html"):
+                continue
+            ext = wiki_cache.get(r["imie"], "")
+            if ext and len(ext) >= 30:
+                trimmed = trim_extract(ext)
+                if len(trimmed) >= 20:
+                    to_translate.append((r, trimmed))
+
+        print(f"  {lang.upper()}→PL tłumaczenie: {len(to_translate)} kandydatów")
+        opis_n = 0
+        origin_n = 0
+
+        for j, (r, trimmed) in enumerate(to_translate):
+            key = hashlib.md5((lang + ":" + trimmed).encode()).hexdigest()
+            if key in tl_cache:
+                translated = tl_cache[key]
+            else:
+                try:
+                    resp = session.post(MINT_URL, json={
+                        "source_language": lang, "target_language": "pl",
+                        "format": "text", "content": trimmed,
+                    }, timeout=90)
+                    resp.raise_for_status()
+                    translated = resp.json().get("translation", "")
+                    tl_cache[key] = translated
+                except Exception as e:
+                    print(f"    MinT {lang}→pl error: {e}")
+                    continue
+                time.sleep(MINT_SLEEP)
+
+            if translated and len(translated) >= 15:
+                r["opis_html"] = f"<p>{html_escape(translated)}</p>"
+                r["opis_zrodlo"] = lang.upper()
+                opis_n += 1
+                if not r.get("pochodzenie"):
+                    origin = wykryj_pochodzenie(translated)
+                    if origin:
+                        r["pochodzenie"] = origin
+                        r["zrodlo"] = f"{lang.upper()}-TL"
+                        origin_n += 1
+
+            if (j + 1) % 100 == 0:
+                cache_mgr.save("tlumaczenia_foreign.json", tl_cache)
+                print(f"    ...{j+1}/{len(to_translate)}")
+
+        cache_mgr.save("tlumaczenia_foreign.json", tl_cache)
+        total_opis += opis_n
+        total_origin += origin_n
+        print(f"  ✓ {lang.upper()}: +{opis_n} opisów, +{origin_n} pochodzeń")
+
+    print(f"\n  ✓ Foreign wikis łącznie: +{total_opis} opisów, "
+          f"+{total_origin} pochodzeń\n")
+    return total_opis, total_origin
+
+
+# =========================================================================
+# Faza 5: korekty pochodzeń (ręczne nadpisania błędnych dopasowań)
+# =========================================================================
+
+# fold(imię) -> poprawny slug pochodzenia. Nadpisuje dowolne źródło.
+ORIGIN_OVERRIDES = {
+    "iwan": "slowianskie",
+    "mariia": "hebrajskie", "maryia": "hebrajskie", "mariya": "hebrajskie",
+    "maxymilian": "lacinskie", "maksymilian": "lacinskie",
+    "markiian": "lacinskie", "markijan": "lacinskie", "markiyan": "lacinskie",
+    "valentyna": "lacinskie", "walentyna": "lacinskie",
+    "liudmyla": "slowianskie", "ludmyla": "slowianskie",
+    "nino": "gruzinskie",
+}
+
+
+def faza_korekty(all_rows):
+    """Nadpisuje ewidentnie błędne pochodzenia (np. Iwan=celtyckie)."""
+    print("=" * 60)
+    print("FAZA 5: korekty pochodzeń")
+    print("=" * 60)
+    n = 0
+    for r in all_rows:
+        slug = ORIGIN_OVERRIDES.get(fold(r["imie"]))
+        if slug and r.get("pochodzenie") != slug:
+            r["pochodzenie"] = slug
+            r["zrodlo"] = ""              # korekta ręczna — bez linku do źródła
+            r.pop("zrodlo_baza", None)
+            n += 1
+    print(f"  ✓ Skorygowano pochodzeń: {n}\n")
+    return n
+
+
+# =========================================================================
+# Faza 6: dziedziczenie opisu po bazie + imiona złożone
+# =========================================================================
+
+def faza_dziedzicz_opis(all_rows):
+    """Uzupełnia opisy offline, bez sieci:
+      (a) imię z bazą (wariant/transliteracja/morfologia, pole zrodlo_baza)
+          dziedziczy opis bazy,
+      (b) imię złożone ("Anna Maria") dziedziczy pochodzenie i opis po
+          pierwszym członie.
+    Uruchamiana NA KOŃCU, gdy wszystkie źródła opisów są już zebrane."""
+    print("=" * 60)
+    print("FAZA 6: dziedziczenie opisu (baza + imiona złożone)")
+    print("=" * 60)
+
+    by_fold = {}
+    for r in all_rows:
+        by_fold.setdefault(fold(r["imie"]), r)
+
+    NOTE = '<p style="color:var(--faint);font-size:.92em">{}</p>'
+    n_war = n_zloz_op = n_zloz_po = 0
+
+    # (a) dziedziczenie opisu po zrodlo_baza — pętla do zbieżności
+    # (baza sama może dziedziczyć opis, więc kilka przebiegów łapie łańcuchy)
+    for _pass in range(3):
+        zm = 0
+        for r in all_rows:
+            if r.get("opis_html"):
+                continue
+            base = r.get("zrodlo_baza")
+            if not base:
+                continue
+            b = by_fold.get(fold(base))
+            if b and b.get("opis_html") and fold(b["imie"]) != fold(r["imie"]):
+                note = NOTE.format(f'Wariant zapisu imienia <b>{html_escape(b["imie"])}</b>.')
+                r["opis_html"] = note + b["opis_html"]
+                n_war += 1
+                zm += 1
+        if not zm:
+            break
+
+    # (b) imiona złożone: pierwszy człon
+    # Dopasowanie WD dla imienia złożonego to zwykle przypadkowa osoba
+    # ("Anna Maria" → skrzypaczka), więc dla źródeł WD/pustych NADPISUJEMY
+    # danymi pierwszego członu (pewniejszymi). Źródła nazwowe (PL/TRANS/WAR…)
+    # zostawiamy.
+    for r in all_rows:
+        nm = r["imie"]
+        if " " not in nm and "-" not in nm:
+            continue
+        first = re.split(r"[ \-]", nm)[0]
+        b = by_fold.get(fold(first))
+        if not b or fold(b["imie"]) == fold(nm) or not b.get("pochodzenie"):
+            continue
+        unreliable = r.get("zrodlo") in (None, "", "WD", "WDD")
+        if not r.get("pochodzenie") or unreliable:
+            r["pochodzenie"] = b["pochodzenie"]
+            r["zrodlo"] = "WAR"
+            r["zrodlo_baza"] = b["imie"]
+            n_zloz_po += 1
+        if (not r.get("opis_html") or unreliable) and b.get("opis_html"):
+            note = NOTE.format(f'Imię złożone; pierwszy człon: <b>{html_escape(b["imie"])}</b>.')
+            r["opis_html"] = note + b["opis_html"]
+            r.pop("opis_zrodlo", None)
+            n_zloz_op += 1
+
+    print(f"  ✓ opis po bazie: +{n_war}, złożone: +{n_zloz_op} opisów, "
+          f"+{n_zloz_po} pochodzeń\n")
+    return n_war + n_zloz_op
+
+
+# =========================================================================
+# Regeneracja dane.js + opisy/ z mapą źródeł
+# =========================================================================
+
+def regeneruj_dane_js(meskie, zenskie, niebinarne_path="dataset_niebinarne.json"):
+    """Regeneruje dane.js i opisy/*.js z mapą źródeł NZ_OPISY_SRC."""
+    import shutil
+
+    print("=" * 60)
+    print("REGENERACJA dane.js + opisy/")
+    print("=" * 60)
+
+    niebinarne = []
+    if os.path.exists(niebinarne_path):
+        with open(niebinarne_path, encoding="utf-8") as f:
+            niebinarne = json.load(f)
+
+    shards = {}    # litera → {imie: opis_html}
+    shard_src = {} # litera → {imie: zrodlo_code}
+
+    def bez_opisow(rows):
+        out = []
+        for r in rows:
+            opis = r.get("opis_html")
+            opis_src = r.get("opis_zrodlo", "")
+            if opis:
+                k = shard_opisow(r["imie"])
+                shards.setdefault(k, {})[r["imie"]] = opis
+                if opis_src:
+                    shard_src.setdefault(k, {})[r["imie"]] = opis_src
+            # Usuń pola wewnętrzne z eksportu
+            out.append({k: v for k, v in r.items()
+                        if k not in ("opis_html", "opis_zrodlo")})
+        return out
+
+    m = bez_opisow(meskie)
+    z = bez_opisow(zenskie)
+
+    with open("dane.js", "w", encoding="utf-8") as f:
+        f.write("// Wygenerowane przez zbuduj_dataset.py — dane dla strony.\n")
+        f.write("window.DANE_MESKIE = ")
+        json.dump(m, f, ensure_ascii=False)
+        f.write(";\n window.DANE_ZENSKIE = ")
+        json.dump(z, f, ensure_ascii=False)
+        f.write(";\n window.DANE_NIEBINARNE = ")
+        json.dump(niebinarne, f, ensure_ascii=False)
+        f.write(";\n")
+
+    if os.path.isdir("opisy"):
+        shutil.rmtree("opisy")
+    os.makedirs("opisy", exist_ok=True)
+
+    for k, mapa in sorted(shards.items()):
+        with open(f"opisy/{k}.js", "w", encoding="utf-8") as f:
+            f.write("window.NZ_OPISY=window.NZ_OPISY||{};window.NZ_OPISY[")
+            f.write(json.dumps(k))
+            f.write("]=")
+            json.dump(mapa, f, ensure_ascii=False)
             f.write(";\n")
-        if os.path.isdir("opisy"):
-            shutil.rmtree("opisy")
-        os.makedirs("opisy", exist_ok=True)
-        for k, mapa in sorted(shards.items()):
-            with open(f"opisy/{k}.js", "w", encoding="utf-8") as f:
-                f.write("window.NZ_OPISY=window.NZ_OPISY||{};window.NZ_OPISY[")
+            # Dopisz mapę źródeł (tylko jeśli są wpisy spoza PL)
+            src = shard_src.get(k, {})
+            if src:
+                f.write("window.NZ_OPISY_SRC=window.NZ_OPISY_SRC||{};window.NZ_OPISY_SRC[")
                 f.write(json.dumps(k))
                 f.write("]=")
-                json.dump(mapa, f, ensure_ascii=False)
+                json.dump(src, f, ensure_ascii=False)
                 f.write(";\n")
-        print(f"      dane.js (rdzeń) + opisy/: {len(shards)} shardów")
 
+    print(f"  dane.js + opisy/: {len(shards)} shardów "
+          f"({sum(len(v) for v in shards.values())} opisów, "
+          f"{sum(len(v) for v in shard_src.values())} z oznaczonym źródłem)\n")
 
 if __name__ == "__main__":
     DatasetBuilder().run()

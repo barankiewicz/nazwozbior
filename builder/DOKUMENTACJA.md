@@ -40,6 +40,29 @@ dane.gov.pl (PESEL, XLSX)        zaimki.pl (API)
   tylko dla imion bez pochodzenia/opisu. `--limit N` ogranicza do N
   najpopularniejszych imion każdej płci (do szybkich testów).
 
+## Krok 2b — trendy nadań (popularność w czasie)
+
+`wczytaj_trendy()` buduje mapę `{imię: {rok: liczba nadań}}` z rocznikowych
+danych dane.gov.pl (to **inny zbiór** niż główny rejestr osób żyjących —
+chodzi o imiona nadane dzieciom wg roku urodzenia):
+
+- **2000–2019**: `raw_pesel/imiona_2000-2019.csv` (kolumny `Rok,Imię,Liczba,Płeć`
+  z kodami `M`/`K`) — sumujemy obie płcie na każdą parę (imię, rok);
+- **2024**: `raw_pesel/imiona_2024_m.xlsx` + `_z.xlsx` — suma męskich i żeńskich
+  jako rok `"2024"` (stąd luka 2020–2023, której po prostu nie pobrano).
+
+Imię normalizujemy `titlecase_pl`, więc klucze pasują do datasetów. Scaloną
+mapę (re)zapisujemy do `raw_pesel/trends_2000-2024.json`; gdy surowych plików
+nie ma, czytamy ten gotowy plik (a gdy i jego brak — trendy są pomijane).
+
+`_apply_trends()` (w `run()` zaraz po `_apply_limit`) dopina `r["trend"] =
+trendy.get(imię)` do wierszy **obu** datasetów — to samo imię dostaje ten sam
+trend niezależnie od płci datasetu. Pole pojawia się tylko tam, gdzie źródło
+coś ma (rzadkie imiona zostają bez `trend`). `merge()` (tryb `--incremental`)
+przenosi `trend` ze starych danych, więc nie ginie nawet bez surowych plików.
+Flaga `--skip-trendy` pomija cały krok. Surowe pliki rocznikowe są wkładane
+ręcznie do `raw_pesel/` (główny pipeline ich nie pobiera).
+
 ## Krok 3 — wzbogacanie: skąd bierze się „pochodzenie" i opis
 
 Źródła odpytujemy **kaskadowo, od najtańszego i najpewniejszego**. Każde
@@ -232,27 +255,50 @@ Reguły: opis-statystyki (R1), opis-imieniny (R2), artykuł nie o imieniu (R3),
 opis podejrzanie krótki (R4), opis bez wzmianki o imieniu (R5).
 Raport z przykładami (posortowanymi po popularności imienia) ląduje
 w `AUDYT.md`. Wiersze datasetu niosą też pole `zrodlo` (PL/WD/WDD/EN/
-WIKT-EN/WIKT-PL/ODZ/MORF) + `zrodlo_baza` — strona pokazuje przy
-pochodzeniu link do źródła, a audyt może filtrować po źródłach.
+WIKT-EN/WIKT-PL/ODZ/MORF/TRANS/WIKT-CAT/WAR/EN-TL/UK-TL/RU-TL/VI-TL)
++ `zrodlo_baza` — strona pokazuje przy pochodzeniu link do źródła, a audyt
+może filtrować po źródłach.
+
+## Druga faza wzbogacania (w tym samym pliku)
+
+Po pełnym buildzie (po `_cleanup_rows`) `run()` woła `_run_wzbogacanie()` —
+dawniej osobny `wzbogac_opisy.py`, teraz scalony do `zbuduj_dataset.py`:
+
+- **transliteracja słownikowa** (`UK_BE_TRANSLIT`, TRANS),
+- **kategorie en.Wiktionary** (`WIKT_TERM_MAP`, WIKT-CAT),
+- **warianty pisowni** lokalnie (`faza_warianty`, WAR),
+- **tłumaczenia MinT** intro z EN/UK/RU/BE/VI Wikipedii → opisy + pochodzenie
+  (EN-TL/UK-TL/RU-TL/VI-TL; `opis_zrodlo` = język oryginału),
+- **korekty** ręczne błędnych pochodzeń (`ORIGIN_OVERRIDES`),
+- **dziedziczenie opisu** offline: po `zrodlo_baza` oraz po pierwszym członie
+  imion złożonych ("Anna Maria" ← Anna).
+
+Tryb `--tylko-wzbogac` uruchamia samą tę fazę na istniejących
+`dataset_*.json` (bez pobierania PESEL/Wikipedii). Placeholdery PESEL
+(Brak Danych, Bd, Xxx…) odsiewa `is_junk_name`. Zapis dane.js robi
+`regeneruj_dane_js` (rdzeń + shardy opisów + mapa źródeł `NZ_OPISY_SRC`).
 
 ## CI/CD
 
-`.github/workflows/build.yml`: na push do `main` (i raz w miesiącu z crona)
-GitHub Actions odpala pełny `python3 zbuduj_dataset.py` (z cache
-`.cache_wiki` między biegami) i publikuje całość na GitHub Pages.
+`.github/workflows/deploy.yml`: na push do `main` (i `workflow_dispatch`)
+GitHub Actions **tylko publikuje** gotowe pliki na GitHub Pages (+ opcjonalnie
+FTP). Datasety buduje się lokalnie i commituje (patrz wyżej) — CI nie odpala
+`zbuduj_dataset.py`.
 
 ## Uruchamianie lokalnie
 
 ```bash
 pip install requests openpyxl
-python3 zbuduj_dataset.py --limit 300   # szybki test
-python3 zbuduj_dataset.py               # pełny bieg (długo!)
-python3 zbuduj_dataset.py --incremental # tylko braki
-python3 -m http.server                  # podgląd strony
+python3 zbuduj_dataset.py --limit 300    # szybki test
+python3 zbuduj_dataset.py                # pełny bieg (długo!)
+python3 zbuduj_dataset.py --incremental  # tylko braki
+python3 zbuduj_dataset.py --tylko-wzbogac # tylko 2. faza na gotowych datasetach
+python3 -m http.server                   # podgląd strony
 ```
 
-Flagi: `--limit N`, `--incremental`, `--skip-pl`, `--skip-en`, `--skip-wd`,
-`--skip-zaimki`, `--od-nowa` (czyści cache), `--no-sleep`, `--shutdown`.
+Flagi: `--limit N`, `--incremental`, `--tylko-wzbogac`, `--skip-pl`,
+`--skip-en`, `--skip-wd`, `--skip-zaimki`, `--skip-trendy`,
+`--od-nowa` (czyści cache), `--no-sleep`, `--shutdown`.
 
 ## Jak rozszerzać
 
