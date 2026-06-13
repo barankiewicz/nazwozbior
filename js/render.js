@@ -39,7 +39,17 @@ function render() {
     var c4 = nx ? formatNumber(r._rmp + r._rmd) : formatNumber(r.wystapienia_drugie);
     var zTotal = r._rzp + r._rzd, mTotal = r._rmp + r._rmd, tCombined = zTotal + mTotal;
     var zPctR = tCombined ? Math.round(zTotal / tCombined * 100) : 0;
-    var ratioStr = nx ? '<span>ż\u00A0' + zPctR + '%\u00A0/\u00A0m\u00A0' + (100 - zPctR) + '%</span>' : '<td class="num"></td>';
+    var femalePct = zPctR;
+    var malePct = 100 - zPctR;
+    var ratioStr = nx 
+      ? '<div style="display: inline-flex; flex-direction: column; align-items: flex-end; gap: 3px; vertical-align: middle;">' +
+          '<span style="font-size: 11.5px; opacity: 0.85;">' + femalePct + '%\u00A0/\u00A0' + malePct + '%</span>' +
+          '<div style="display: flex; width: 60px; height: 4px; border-radius: 2px; overflow: hidden; background: var(--line);">' +
+            '<div style="width: ' + femalePct + '%; background: var(--accent);"></div>' +
+            '<div style="width: ' + malePct + '%; background: color-mix(in srgb, var(--accent) 35%, var(--surface-2));"></div>' +
+          '</div>' +
+        '</div>' 
+      : '';
     
     var tagTxt = nb ? getNbOriginLabel(r) : getOriginLabel(r.pochodzenie);
     if (tagTxt.length > 26) tagTxt = tagTxt.slice(0, 24) + "…";
