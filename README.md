@@ -1,37 +1,39 @@
-![flag](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMjAiPjxyZWN0IHk9IjAiIHdpZHRoPSI0MDAiIGhlaWdodD0iNCIgZmlsbD0iIzVCQ0VGQSIvPjxyZWN0IHk9IjQiIHdpZHRoPSI0MDAiIGhlaWdodD0iNCIgZmlsbD0iI0Y1QTlCOCIvPjxyZWN0IHk9IjgiIHdpZHRoPSI0MDAiIGhlaWdodD0iNCIgZmlsbD0iI0ZGRkZGRiIvPjxyZWN0IHk9IjEyIiB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQiIGZpbGw9IiNGNUE5QjgiLz48cmVjdCB5PSIxNiIgd2lkdGg9IjQwMCIgaGVpZ2h0PSI0IiBmaWxsPSIjNUJDRUZBIi8+PC9zdmc+)
+# Nazwozbiór 🏳️‍⚧️
 
-# Nazwozbiór
+> **[nazwozbior.pl](https://nazwozbior.pl)**
 
-> Strona działa pod **[nazwozbior.pl](https://nazwozbior.pl)**.
+Przeglądarka imion z rejestru PESEL i niebinarnych z [zaimki.pl](https://zaimki.pl/imiona). Bez logowania, bez ciasteczek, bez śledzenia. Zrobione przez osoby trans dla osób trans, ale korzystać może każdy. Szukasz imienia dla siebie? Myślisz o zmianie? Chcesz wiedzieć, skąd się wzięło Twoje? To tu.
 
-Przeglądasz imiona z rejestru PESEL i niebinarne z [zaimki.pl](https://zaimki.pl/imiona). Bez logowania, bez ciasteczek, bez śledzenia. Projekt robiony przez osoby trans, dla osób trans — ale każdy może z niego korzystać. Jeśli szukasz imienia dla siebie, zastanawiasz się nad zmianą albo po prostu chcesz wiedzieć, skąd się wzięło Twoje — jesteś w dobrym miejscu.
+## Co tu jest
 
-## Co tu znajdziesz
+**~50 tys. imion** z PESEL-u. Żeńskie i męskie. Z danymi o tym, ile osób nosi je jako pierwsze, a ile jako drugie. Źródło: [dane.gov.pl](https://dane.gov.pl/pl/dataset/1667). Odświeżamy raz w miesiącu.
 
-- **~50 tys. imion** z rejestru PESEL — żeńskie i męskie, z danymi o wystąpieniach (pierwsze i drugie imię). Źródło: [dane.gov.pl](https://dane.gov.pl/pl/dataset/1667). Aktualizowane raz w miesiącu przez CI.
-- **~2700 imion unisex** — wyliczamy je sami z PESEL-u: imiona, które pojawiają się zarówno z żeńską, jak i męską metryką (co najmniej 10% nadań w drugiej płci).
-- **~220 imion niebinarnych** z [zaimki.pl](https://zaimki.pl/imiona) — baza prowadzona przez kolektyw Rada Języka Neutralnego. Każde ma swój profil: znaczenie, pochodzenie, użycie, status prawny, plusy i minusy, imieniny, znane osoby.
-- **Opisy i etymologia** z Wikipedii (polskiej, angielskiej, ukraińskiej, rosyjskiej, wietnamskiej), tłumaczone maszynowo przez [MinT](https://translate.wmcloud.org/).
-- **Ż / M** — kolumna pokazująca procent nadań żeńskich i męskich. Im bliżej 50/50, tym bardziej neutralne. Dostępna w widoku niebinarnym i unisex.
+**~2700 imion unisex** – sami je wyliczamy. Imię pojawia się zarówno u osób z metryką żeńską, jak i męską, przynajmniej po 10% w obu grupach. Nie ma tego w rejestrze, to nasza robota.
 
-## Co można tu robić
+**~220 imion niebinarnych** z [zaimki.pl/imiona](https://zaimki.pl/imiona). Każde ma profil: znaczenie, pochodzenie, użycie, status w urzędach, plusy, minusy, imieniny, znane osoby. Bazę prowadzi kolektyw Rada Języka Neutralnego.
 
-Klikasz, filtrujesz, sortujesz. Wszystko, co wybierzesz, trafia do URL-a — możesz komuś podesłać link z konkretnym widokiem.
+**Opisy i etymologia** z Wikipedii. Polska, angielska, ukraińska, rosyjska, wietnamska. Tłumaczy [MinT](https://translate.wmcloud.org/), automatycznie.
 
-- **Rodzaj**: żeńskie, męskie, unisex (nasze wyliczenia z PESEL-u), niebinarne (z zaimki.pl), wszystkie
-- **Długość**: suwaki 1–35 liter
-- **Wystąpienia**: pola min/max — ile razy imię nadano
-- **Pochodzenie**: greckie, hebrajskie, łacińskie, słowiańskie, germańskie i jeszcze ~40 innych. Przy każdej opcji widzisz licznik — wiesz, ile imion pasuje, zanim klikniesz
-- **Szukajka**: zwykłe wyszukiwanie i regex (`^A`, `a$`, `[aeiou]{2}`, `^.{3}$`). Przełącznik `.*` obok pola
-- **Sortowanie**: klikasz w nagłówek, sortuje. Drugie kliknięcie — odwrotnie
-- **Szczegóły**: klikasz wiersz, rozwija się panel z etymologią, trendem nadań (2022→2024), imionami pochodnymi i bazowymi (klikalnymi). Dla niebinarnych — pełny profil z zaimki.pl
-- **Losuj**: dostajesz przypadkowe imię z obecnych filtrów
-- **CSV**: pobierasz widoczne wyniki jako plik CSV
-- **Paginacja**: 250 imion na stronę, z przyciskiem „pokaż wszystkie"
+**Kolumna ż / m** – ile procent nadań żeńskich, ile męskich. Im bliżej 50/50, tym bardziej neutralne imię. Widać w zakładkach "niebinarne" i "unisex".
 
-## Architektura
+## Jak używać
 
-Zero backendu. Jeden plik HTML i jeden wygenerowany plik JS. Wszystko po stronie klienta.
+Wszystkie filtry zapisują się w adresie strony. Możesz skopiować link i wysłać komuś dokładnie ten widok.
+
+- **Rodzaj**: żeńskie, męskie, unisex (PESEL, nasze wyliczenia), niebinarne (zaimki.pl), wszystkie naraz
+- **Długość**: suwak 1–35 liter
+- **Wystąpienia**: minimum i maksimum nadań
+- **Pochodzenie**: greckie, hebrajskie, łacińskie, słowiańskie, germańskie i jeszcze ~40 innych. Każda opcja pokazuje, ile imion pasuje
+- **Szukajka**: zwykłe wyszukiwanie i regex. Przełącznik `.*` przy polu
+- **Sortowanie**: klikasz nagłówek kolumny. Drugi raz odwraca kierunek
+- **Szczegóły**: klikasz wiersz i rozwija ci się etymologia, trend nadań (2022 i 2024), imiona pochodne i bazowe. Wszystkie klikalne. Dla niebinarnych pokazuje pełen profil z zaimki.pl
+- **Losuj**: dostajesz jedno imię z widocznych wyników
+- **CSV**: pobierasz wszystko co widać jako plik
+- **Stronicowanie**: 250 imion na stronę, zawsze możesz rozwinąć wszystko
+
+## Jak to działa pod spodem
+
+Strona jest w całości po stronie klienta. Żadnego backendu. Jeden plik HTML i jeden plik `dane.js` z wygenerowanymi danymi.
 
 ```
 dane.gov.pl (PESEL, XLSX)        zaimki.pl (API)
@@ -39,100 +41,98 @@ dane.gov.pl (PESEL, XLSX)        zaimki.pl (API)
         ▼                              ▼
 ┌─────── builder/zbuduj_dataset.py ──────────────────┐
 │ 1. pobiera XLSX z PESEL-u                           │
-│ 2. buduje dataset męski i żeński                    │
-│ 3. kaskadowo wzbogaca o pochodzenie i opis:         │
-│    PL Wiki → Wikidane → EN Wiki → Wikisłowniki      │
-│    → dziedziczenie → morfologia                      │
+│ 2. buduje osobne datasety dla imion męskich i żeńskich
+│ 3. szuka pochodzenia i opisu dla każdego imienia:   │
+│    PL Wikipedia → Wikidane → EN Wikipedia           │
+│    → Wikisłowniki → dziedziczenie → morfologia       │
 │ 4. pobiera imiona niebinarne przez API              │
-│ 5. zapisuje: dane.js + dataset_*.json + opisy/*.js  │
+│ 5. zapisuje wszystko do dane.js + dataset_*.json    │
+│    + opisy/*.js                                     │
 └─────────────────────────────────────────────────────┘
         │
         ▼
    dane.js  ──►  index.html (vanilla JS, jeden plik)
 ```
 
-### Jak znajdujemy pochodzenie
+### Skąd znamy pochodzenie imienia
 
-Każde imię z PESEL-u przechodzi przez kilka źródeł. Jeśli któreś da wynik, następne są pomijane:
+Każde imię z PESEL-u przeglądamy przez kilka źródeł, po kolei. Jak któreś trafi, następne już nie szukają.
 
-1. **Polska Wikipedia** — parsujemy intro i kategorie. Szukamy fraz typu „pochodzenia greckiego", „z języka hebrajskiego". Przy okazji pobieramy sekcję 0 jako HTML do opisu (algorytm punktuje akapity o etymologii, odrzuca statystyki PESEL i listy imienin).
-2. **Wikidane (hurtowo)** — ściągamy hurtem wszystkie elementy z klas „imię" / „imię męskie" / „imię żeńskie" / „imię unisex" przez SPARQL, shardując po MD5 QID. Dostajemy mapę ~55 tys. imion → język pochodzenia. Dopasowujemy lokalnie, bez kolejnych zapytań.
-3. **Angielska Wikipedia** — kategorie (`Hungarian masculine given names`) i wzorce w intro (`of Welsh origin`).
-4. **Wikisłowniki** — en.wiktionary (kategorie `given names from X`) i pl.wiktionary (sekcje z etymologią).
-5. **Dziedziczenie** — „Ola to zdrobnienie Aleksandry". Parsujemy relacje z intro polskiej Wikipedii, śledzimy cele przekierowań. Działa w max. 3 przebiegach.
-6. **Morfologia** — ostatnia deska: żeńska forma bez etymologii dziedziczy po męskiej (`Karolina → Karol`, przez końcówki `-ina/-yna/-a`).
+1. **Polska Wikipedia**. Analizujemy intro artykułu i kategorie. Szukamy zwrotów w rodzaju "pochodzenia greckiego" albo "z języka hebrajskiego". Z intro wyciągamy też opis (promujemy akapity o etymologii, wyrzucamy statystyki PESEL).
+2. **Wikidane**. Ściągamy hurtem wszystkie imiona przez SPARQL, shardując zapytania po MD5. Dostajemy ~55 tys. imion przypisanych do języka. Dalsze dopasowania robimy lokalnie.
+3. **Angielska Wikipedia**. Kategorie w stylu `Hungarian masculine given names` i wzorce w tekście (`of Welsh origin`).
+4. **Wikisłowniki**. en.wiktionary szuka `given names from X`, pl.wiktionary czyta sekcje z etymologią.
+5. **Dziedziczenie**. "Ola to zdrobnienie Aleksandry". Wyciągamy takie relacje z intro polskiej Wikipedii i sprawdzamy przekierowania. Maksymalnie 3 przebiegi.
+6. **Morfologia**. Żeńska forma bez etymologii dostaje pochodzenie od swojej męskiej wersji. Karolina ← Karol, przez końcówki `-ina`, `-yna`, `-a`.
 
-Wszystko ląduje w cache (`.cache_wiki/`). Jak się przerwie — wznawiasz bez straty.
+Cache trzymamy w `.cache_wiki/`. Przerwiesz, uruchomisz jeszcze raz i leci od miejsca, gdzie skończyło.
 
-### Leniwe opisy
+### Opisy ładują się na raty
 
-Opisy to jakieś 40% danych (surowo ~2,3 MB). Zamiast ładować wszystko na start, trzymamy je w osobnych plikach `opisy/<litera>.js`. Strona doczytuje je dynamicznym `<script>` dopiero gdy klikniesz pierwszy wiersz na daną literę. Start lżeje z ~2,3 MB do ~0,7 MB (po gzipie). Działa pod `file://` i z CSP.
+Opisy to ~40% wszystkich danych. Zamiast pakować je do głównego pliku, trzymamy w shardach `opisy/<litera>.js`. Strona doczytuje literę dopiero jak klikniesz pierwsze imię na nią. Dzięki temu start strony waży ~0,7 MB zamiast ~2,3 MB. Działa nawet przy `file://`.
 
-### Powiązania między imionami
+### Powiązania
 
-Każde imię może mieć informację, od kogo pochodzi (`bazowe`) i co od niego pochodzi (`pochodne`). Relacje są klikalne — przenoszą do konkretnego imienia, luzując tylko te filtry, które by je ukryły. Walidacja: imię bazowe musi istnieć w PESEL-u.
+Każde imię wie, od kogo pochodzi (`bazowe`) i jakie imiona pochodzą od niego (`pochodne`). Wszystkie te linki są klikalne, przenoszą od razu do właściwego wiersza, same luzują filtry.
 
-## Czym to jest zrobione
+## Stack
 
-- **Frontend**: `index.html` — HTML, CSS i JS w jednym pliku. Zero frameworków, zero npm. ES5 dla kompatybilności.
-- **CSS**: custom properties, dark/light theme (`data-theme` + `prefers-color-scheme`), flexbox, sticky nagłówki, tooltipy na `::after` + `data-tip`.
-- **JS**: stan filtrów w URL (`history.replaceState`), sortowanie, paginacja, leniwe ładowanie shardów opisów.
-- **Service worker** (`sw.js` v4): network-first, z cache jako fallbackiem. Offline działa, a po wdrożeniu nikt nie utknie na starej wersji.
-- **CSP**: `default-src 'self'`, `style-src` z Google Fonts, `connect-src` tylko GoatCounter.
-- **Czcionki**: Baloo 2 (nagłówek, imiona) + Atkinson Hyperlegible (tekst).
-- **Backend**: Python 3.13 — `builder/zbuduj_dataset.py`. Zależności: `requests`, `openpyxl`. Output to statyczne pliki.
-- **CI/CD**: GitHub Actions — przy pushu do main i raz w miesiącu z crona buduje dane i wrzuca na GitHub Pages (plus opcjonalny deploy FTP).
-- **Hosting**: statyczne pliki, dowolny HTTP server albo Pages.
+Frontend to jeden plik `index.html`: HTML, CSS i JS. Żadnych frameworków, żadnego npm.
 
-## Jak to odpalić lokalnie
+- **CSS**: custom properties, ciemny/jasny motyw, flexbox, sticky nagłówki, tooltipy na `data-tip` + `::after`
+- **JS**: ES5, stan filtrów w URL-u (`history.replaceState`), sortowanie, paginacja, leniwe shardy
+- **Service worker**: `sw.js` v4, network-first z cache fallbackiem. Działa offline
+- **CSP**: wszystko zablokowane poza tym co trzeba
+- **Czcionki**: Baloo 2 do nagłówków, Atkinson Hyperlegible do tekstu
+- **Backend/dane**: Python 3.13, `requests` + `openpyxl`. Skrypt buduje statyczne pliki
+- **CI/CD**: GitHub Actions raz w miesiącu i przy każdym pushu. Buduje dane, deploy na Pages i FTP
+- **Hosting**: statyczne pliki
+
+## Jak odpalić u siebie
 
 ```bash
 pip install requests openpyxl
-python3 builder/zbuduj_dataset.py --limit 300   # na próbę (~top 300 imion)
-python3 builder/zbuduj_dataset.py               # pełen bieg (~godzina)
+python3 builder/zbuduj_dataset.py --limit 300   # szybki test, top 300 imion
+python3 builder/zbuduj_dataset.py               # pełny bieg, potrwa z godzinę
 python3 builder/zbuduj_dataset.py --incremental # tylko uzupełnia braki
-python3 -m http.server 8080
-# → http://localhost:8080
+python3 -m http.server 8080                     # → localhost:8080
 ```
 
-Przydatne flagi: `--limit N`, `--incremental`, `--skip-pl`, `--skip-en`, `--skip-wd`, `--skip-wikt`, `--skip-zaimki`, `--od-nowa`, `--no-sleep`, `--shutdown`.
+Flagi: `--limit N`, `--incremental`, `--skip-pl`, `--skip-en`, `--skip-wd`, `--skip-wikt`, `--skip-zaimki`, `--od-nowa`, `--no-sleep`, `--shutdown`.
 
 ## Audyt jakości
 
-`python3 builder/audyt_dataset.py` sprawdza każdy build. Pięć reguł: czy opis to nie statystyki PESEL (R1), czy to nie lista imienin (R2), czy artykuł na pewno jest o imieniu (R3), czy opis nie jest za krótki (R4), czy w ogóle wspomina o imieniu (R5). Raport z przykładami trafia do `builder/AUDYT.md`.
+`python3 builder/audyt_dataset.py` przechodzi po datasetach i sprawdza 5 rzeczy: czy opis to nie statystyki PESEL zamiast etymologii, czy to nie lista imienin, czy artykuł z Wikipedii faktycznie jest o imieniu, czy opis nie jest za krótki, czy w ogóle wspomina imię. Raport z przykładami ląduje w `builder/AUDYT.md`.
 
-## Struktura katalogów
+## Pliki
 
 ```
 .
-├── index.html              # frontend
-├── dane.js                 # dane (bez opisów)
-├── opisy/*.js              # shardy opisów (leniwe)
-├── dataset_*.json          # pełne datasety (JSON)
-├── dataset_*.csv           # pełne datasety (CSV)
-├── builder/                # skrypty budujące dane
-│   ├── zbuduj_dataset.py   # główny
-│   ├── audyt_dataset.py    # kontrola jakości
-│   ├── wzbogac_opisy.py    # dodatkowe wzbogacanie
+├── index.html              # frontend (HTML + CSS + JS)
+├── dane.js                 # dane bez opisów
+├── opisy/*.js              # opisy, shardowane po literze
+├── dataset_*.json, *.csv   # pełne datasety
+├── builder/                # skrypty budujące
+│   ├── zbuduj_dataset.py
+│   ├── audyt_dataset.py
+│   ├── wzbogac_opisy.py
 │   ├── wzbogac_nowe_wiki.py
-│   ├── DOKUMENTACJA.md     # pełna dokumentacja
-│   └── AUDYT.md            # raport z audytu
-├── sw.js                   # service worker
-├── count.js                # GoatCounter (self-hosted)
-├── kontakt.html            # kontakt
-├── .cache_wiki/            # cache zapytań wiki
-├── raw_pesel/              # XLSX z dane.gov.pl
+│   ├── DOKUMENTACJA.md
+│   └── AUDYT.md
+├── sw.js, count.js         # service worker, analityka
+├── kontakt.html
+├── .cache_wiki/, raw_pesel/# cache (w .gitignore)
 └── .github/workflows/      # CI/CD
 ```
 
-## Źródła i podziękowania
+## Podziękowania
 
 - Rejestr PESEL: [dane.gov.pl](https://dane.gov.pl/pl/dataset/1667)
-- Imiona niebinarne: [zaimki.pl](https://zaimki.pl/imiona) — kolektyw [Rada Języka Neutralnego](https://zaimki.pl/kolektyw-rjn)
-- Opisy: Wikipedia (CC BY-SA) przez [MinT](https://translate.wmcloud.org/)
+- Imiona niebinarne: [Rada Języka Neutralnego](https://zaimki.pl/kolektyw-rjn)
+- Tłumaczenia: [MinT / NLLB](https://translate.wmcloud.org/)
 - Flaga w logo: flaga transpłciowa
 - Made in Warsaw
 
 ## Licencja
 
-[OQL](https://gitlab.com/PronounsPage/PronounsPage/-/blob/main/LICENSE) — Open Queer License (zgodna z zaimki.pl).
+[OQL](https://gitlab.com/PronounsPage/PronounsPage/-/blob/main/LICENSE), Open Queer License. Taka sama, jak na zaimki.pl.
