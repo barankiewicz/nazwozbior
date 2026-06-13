@@ -7,19 +7,14 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: ftp-deploy
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  deploy-ftp:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Skopiuj pliki publiczne do _site/
@@ -28,28 +23,7 @@ jobs:
           cp index.html dostepnosc.html kontakt.html sw.js dane.js count.js _site/
           cp opisy/*.js _site/opisy/
           cp dataset_*.csv dataset_*.json _site/ 2>/dev/null || true
-      - name: Deploy na GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          path: _site
-
-  deploy-ftp:
-    needs: deploy
-    if: ${{ vars.FTP_ENABLED == 'true' }}
-    runs-on: ubuntu-latest
-    concurrency:
-      group: ftp-${{ github.ref }}
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-      - name: Skopiuj pliki
-        run: |
-          mkdir -p _site/opisy
-          cp index.html dostepnosc.html kontakt.html sw.js dane.js count.js _site/
-          cp opisy/*.js _site/opisy/
-          cp dataset_*.csv dataset_*.json _site/ 2>/dev/null || true
-      - name: Wyślij przez FTP
+      - name: Wyślij przez FTP (lh.pl)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
