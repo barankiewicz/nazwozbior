@@ -152,33 +152,7 @@ function trendSparkline(trend) {
     foot + '</div>';
 }
 
-// Generuje graficzny pasek stosunku płci w rejestrze PESEL (jednobarwny, dwa odcienie marki z legendą)
-function renderGenderRatioBar(femaleCount, maleCount) {
-  var total = femaleCount + maleCount;
-  if (!total) return "";
-  var femalePct = Math.round(femaleCount / total * 100);
-  var malePct = 100 - femalePct;
-  
-  var femaleColor = "var(--accent)";
-  var maleColor = "color-mix(in srgb, var(--accent) 35%, var(--surface-2))";
-  
-  return '<div class="gender-ratio-wrap" style="margin: 12px 0 16px; max-width: 380px;">' +
-    '<div style="display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; flex-wrap: wrap;">' +
-      '<span style="display: inline-flex; align-items: center; gap: 6px;">' +
-        '<span style="width: 8px; height: 8px; border-radius: 50%; background: ' + femaleColor + '; display: inline-block;"></span>' +
-        'żeńskie: <b>' + femalePct + '%</b> (' + formatNumber(femaleCount) + ')' +
-      '</span>' +
-      '<span style="display: inline-flex; align-items: center; gap: 6px;">' +
-        '<span style="width: 8px; height: 8px; border-radius: 50%; background: ' + maleColor + '; display: inline-block;"></span>' +
-        'męskie: <b>' + malePct + '%</b> (' + formatNumber(maleCount) + ')' +
-      '</span>' +
-    '</div>' +
-    '<div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line);">' +
-      '<div style="width: ' + femalePct + '%; background: ' + femaleColor + '; transition: width 0.3s;"></div>' +
-      '<div style="width: ' + malePct + '%; background: ' + maleColor + '; transition: width 0.3s;"></div>' +
-    '</div>' +
-  '</div>';
-}
+
 
 // Pomocnicza funkcja licząca przybliżoną liczbę sylab (samogłosek) w polskim słowie
 function countSyllables(word) {
@@ -225,7 +199,6 @@ function renderUnisexPeselDetail(r) {
     (src.pochodzenie ? (' · pochodzenie <b>' + getOriginLabel(src.pochodzenie) + '</b>' + originSource(src)) : '');
   
   return '<p class="freq">' + freq + '</p>' +
-    renderGenderRatioBar(femaleTotal, maleTotal) +
     trendSparkline(src.trend) +
     baseRelationLinks(src) +
     (state.g === 'm' || state.g === 'z' ? suggestSecondNames(r.imie, state.g, src.pochodzenie) : '') +
@@ -265,7 +238,6 @@ function renderNonbinaryDetail(r) {
   var imieniny = (r.imieniny || []).join(", ") + (r.imieniny_kom ? " (" + r.imieniny_kom + ")" : "");
   
   return '<p class="freq">' + freq + '</p>' +
-    renderGenderRatioBar(femaleTotal, maleTotal) +
     '<dl class="nb-info">' +
     nonbinaryField("znaczenie", r.znaczenie) +
     nonbinaryField("pochodzenie", r.pochodzenie_opis) +
