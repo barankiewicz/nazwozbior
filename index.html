@@ -183,6 +183,7 @@
   }
   
   btn.addEventListener("click", function(){
+    document.body.classList.add("theme-transition");
     root.setAttribute("data-theme", isDark() ? "light" : "dark");
     paint();
   });

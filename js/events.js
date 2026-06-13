@@ -140,7 +140,15 @@ tableBody.addEventListener("click", function (e) {
       setTimeout(function () {
         var pad = det.querySelector(".detail-pad");
         if (pad) { pad.setAttribute("tabindex", "-1"); pad.focus(); }
-      }, 100);
+        
+        // Upewnij się, że cały rozwinięty panel szczegółów jest widoczny na ekranie
+        var rect = det.getBoundingClientRect();
+        var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        if (rect.bottom > viewportHeight) {
+          var scrollOffset = rect.bottom - viewportHeight + 24; // 24px marginesu na dole
+          window.scrollBy({ top: scrollOffset, behavior: "smooth" });
+        }
+      }, 300);
     }
   }
 });
