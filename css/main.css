@@ -57,7 +57,7 @@ header.hero{padding:52px 0 34px;max-width:720px}
 .kicker{font-size:14.5px;color:var(--muted);margin:0 0 14px}
 h1{font-family:var(--display);font-size:clamp(34px,5.4vw,58px);line-height:1.05;font-weight:800;
   letter-spacing:-.01em;margin:0;color:var(--ink)}
-h1 .mark{color:var(--magenta);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='14' viewBox='0 0 80 14'%3E%3Cpath d='M0 3.5 C15 3.5 25 10.5 40 10.5 C55 10.5 65 3.5 80 3.5' fill='none' stroke='%2315c79c' stroke-width='4'/%3E%3C/svg%3E");
+h1 .mark{color:var(--magenta);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='12' viewBox='0 0 80 12'%3E%3Cpath d='M0 3 C15 3 25 9 40 9 C55 9 65 3 80 3' fill='none' stroke='%2315c79c' stroke-width='4'/%3E%3C/svg%3E");
   background-repeat:repeat-x;background-position:0 100%;background-size:80px 12px;padding-bottom:8px;
   animation:wave 2.6s linear infinite}
 @keyframes wave{from{background-position:0 100%}to{background-position:-80px 100%}}
