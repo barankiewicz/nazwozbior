@@ -152,13 +152,38 @@ function trendSparkline(trend) {
     foot + '</div>';
 }
 
+// Generuje graficzny pasek stosunku płci w rejestrze PESEL
+function renderGenderRatioBar(femaleCount, maleCount) {
+  var total = femaleCount + maleCount;
+  if (!total) return "";
+  var femalePct = Math.round(femaleCount / total * 100);
+  var malePct = 100 - femalePct;
+  
+  var femaleColor = "var(--accent)";
+  var maleColor = "#1a7ac4"; // niebieski męski
+  
+  return '<div class="gender-ratio-wrap" style="margin: 12px 0 16px; max-width: 380px;">' +
+    '<div style="display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-bottom: 4px;">' +
+      '<span>żeńskie: <b>' + femalePct + '%</b> (' + formatNumber(femaleCount) + ')</span>' +
+      '<span>męskie: <b>' + malePct + '%</b> (' + formatNumber(maleCount) + ')</span>' +
+    '</div>' +
+    '<div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line);">' +
+      '<div style="width: ' + femalePct + '%; background: ' + femaleColor + '; transition: width 0.3s;"></div>' +
+      '<div style="width: ' + malePct + '%; background: ' + maleColor + '; transition: width 0.3s;"></div>' +
+    '</div>' +
+  '</div>';
+}
+
 // Renderuje panel szczegółów dla imion unisex wprost z rejestru PESEL
 function renderUnisexPeselDetail(r) {
   var src = r._src || {};
-  var freq = 'w PESEL: <b>' + formatNumber(r._rzp + r._rzd) + '</b> os. w rej. żeńskim, <b>' + formatNumber(r._rmp + r._rmd) + '</b> w męskim' +
+  var femaleTotal = r._rzp + r._rzd;
+  var maleTotal = r._rmp + r._rmd;
+  var freq = 'w PESEL: <b>' + formatNumber(femaleTotal) + '</b> os. w rej. żeńskim, <b>' + formatNumber(maleTotal) + '</b> w męskim' +
     (src.pochodzenie ? (' · pochodzenie <b>' + getOriginLabel(src.pochodzenie) + '</b>' + originSource(src)) : '');
   
   return '<p class="freq">' + freq + '</p>' +
+    renderGenderRatioBar(femaleTotal, maleTotal) +
     trendSparkline(src.trend) +
     baseRelationLinks(src) +
     ("opis_html" in src
@@ -176,7 +201,9 @@ function nonbinaryField(label, val, allowHtml) {
 
 // Renderuje panel z informacjami z bazy imion niebinarnych (zaimki.pl)
 function renderNonbinaryDetail(r) {
-  var freq = 'w PESEL: <b>' + formatNumber(r._rzp + r._rzd) + '</b> w rejestrze żeńskim, <b>' + formatNumber(r._rmp + r._rmd) + '</b> w męskim';
+  var femaleTotal = r._rzp + r._rzd;
+  var maleTotal = r._rmp + r._rmd;
+  var freq = 'w PESEL: <b>' + formatNumber(femaleTotal) + '</b> w rejestrze żeńskim, <b>' + formatNumber(maleTotal) + '</b> w męskim';
   
   if (r._war.length > 1) {
     freq += ' · ' + r._war.map(function (v) {
@@ -194,7 +221,9 @@ function renderNonbinaryDetail(r) {
   
   var imieniny = (r.imieniny || []).join(", ") + (r.imieniny_kom ? " (" + r.imieniny_kom + ")" : "");
   
-  return '<p class="freq">' + freq + '</p><dl class="nb-info">' +
+  return '<p class="freq">' + freq + '</p>' +
+    renderGenderRatioBar(femaleTotal, maleTotal) +
+    '<dl class="nb-info">' +
     nonbinaryField("znaczenie", r.znaczenie) +
     nonbinaryField("pochodzenie", r.pochodzenie_opis) +
     nonbinaryField("używane", r.uzycie) +
