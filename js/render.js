@@ -2,34 +2,21 @@
 
 "use strict";
 
+// Zmienna do obsługi infinite scroll
+var currentLimit = PER_PAGE;
+
 // Odpowiada za wyświetlenie przefiltrowanych, posortowanych i spaginowanych rekordów w tabeli DOM
-function render() {
+function render(append) {
   var all = getSorted(getFiltered());
   var total = all.length;
   
-  if (randomOffset >= total) randomOffset = 0;
-  var totalPages = Math.max(1, Math.ceil((total - randomOffset) / PER_PAGE));
-  if (currentPage >= totalPages) currentPage = Math.max(0, totalPages - 1);
-  
-  viewAllButton.style.display = "";
-  var shown, start;
-  
-  if (showAll) {
-    shown = all;
-    prevButton.style.display = "none";
-    nextButton.style.display = "none";
-    pageInfo.textContent = "";
-    viewAllButton.textContent = "pokaż po stronie";
-    countElement.innerHTML = "<b>" + formatNumber(total) + "</b> " + pluralForm(total);
-  } else {
-    start = randomOffset + currentPage * PER_PAGE;
-    shown = all.slice(start, start + PER_PAGE);
-    prevButton.style.display = currentPage > 0 ? "inline-block" : "none";
-    nextButton.style.display = currentPage < totalPages - 1 ? "inline-block" : "none";
-    pageInfo.textContent = "strona " + (currentPage + 1) + " z " + totalPages;
-    viewAllButton.textContent = "pokaż wszystkie";
-    countElement.innerHTML = "<b>" + formatNumber(total) + "</b> " + pluralForm(total) + " · <b>" + formatNumber(start + 1) + "</b>–<b>" + formatNumber(Math.min(start + PER_PAGE, total)) + "</b>";
+  if (!append) {
+    currentLimit = PER_PAGE;
   }
+  
+  var shown = all.slice(0, currentLimit);
+  
+  countElement.innerHTML = "<b>" + formatNumber(total) + "</b> " + pluralForm(total) + " · pokazano <b>" + formatNumber(shown.length) + "</b>";
 
   var h = "";
   shown.forEach(function (r, i) {
@@ -56,8 +43,12 @@ function render() {
     
     var unisexBadge = r.unisex && r.unisex >= 0.1 ? ' <span class="unisex-badge" data-tip="Imię unisex (z PESEL): ' + Math.round(r.unisex * 100) + '% nadań to płeć rzadsza (≥10% w obu rejestrach)">⚥</span>' : '';
     
+    var isFav = favorites.has(r.imie.toLowerCase());
+    var favIcon = isFav ? '★' : '☆';
+    var favClass = isFav ? 'fav-btn active' : 'fav-btn';
+    
     h += '<tr class="main" tabindex="0" data-i="' + i + '" data-imie="' + escapeHtml(r.imie) + '" aria-expanded="false">' +
-         '<td class="name">' + escapeHtml(r.imie) + unisexBadge + '</td>' +
+         '<td class="name"><button type="button" class="' + favClass + '" aria-label="' + (isFav ? 'Usuń z ulubionych' : 'Dodaj do ulubionych') + '" data-fav-imie="' + escapeHtml(r.imie) + '">' + favIcon + '</button>' + escapeHtml(r.imie) + unisexBadge + '</td>' +
          '<td class="num hide">' + r.imie.length + '</td>' +
          '<td><span class="tag ' + getOriginClass(r.pochodzenie) + '">' + escapeHtml(tagTxt) + '</span></td>' +
          '<td class="num">' + c3 + '</td>' +
@@ -65,7 +56,7 @@ function render() {
          (nx ? '<td class="num" data-tip="Stosunek nadań żeńskich do męskich. Im bliżej 50/50, tym bardziej neutralne płciowo imię.">' + ratioStr + '</td>' : '<td class="num"></td>') +
          '<td class="num hide">' + formatNumber(totalCount(r)) + '</td>' +
          '<td style="text-align:right"><span class="chev">›</span></td></tr>' +
-         '<tr class="detail" data-d="' + i + '"><td colspan="8"><div class="detail-inner" aria-hidden="true"><div class="detail-pad">' +
+         '<tr class="detail" data-d="' + i + '"><td colspan="8"><div class="detail-inner" aria-hidden="true"><div><div class="detail-pad">' +
          
          (nb && !r._is_unisex_pesel ? renderNonbinaryDetail(r) :
           (nb && r._is_unisex_pesel) || uni ? renderUnisexPeselDetail(r) :
@@ -74,13 +65,14 @@ function render() {
           (r.pochodzenie ? (' · pochodzenie <b>' + getOriginLabel(r.pochodzenie) + '</b>' + originSource(r)) : '') + '</p>' +
           trendSparkline(r.trend) +
           baseRelationLinks(r) +
+          suggestSecondNames(r.imie, r._g, r.pochodzenie) +
           ("opis_html" in r
             ? ('<div class="opis">' + (r.opis_html || DESCRIPTION_MISSING) + '</div>' +
                (r.opis_html ? '<p class="src">' + getDescriptionSourceLink(r.imie) + '</p>' : ''))
-            : ('<div class="opis" data-opis-imie="' + escapeHtml(r.imie) + '"><span style="color:var(--faint)">wczytuję znaczenie…</span></div>' +
+            : ('<div class="opis" data-opis-imie="' + escapeHtml(r.imie) + '">' + DESCRIPTION_LOADING + '</div>' +
                '<p class="src" data-src-imie="' + escapeHtml(r.imie) + '" style="display:none"></p>'))) +
          
-         '</div></div></td></tr>';
+         '</div></div></div></td></tr>';
   });
   
   tableBody.innerHTML = h || '<tr><td colspan="8"><div class="empty">Nic z tego nie pasuje - poluzuj trochę filtry.<span class="shrug">¯\\_(ツ)_/¯</span></div></td></tr>';
@@ -101,6 +93,8 @@ function updateFacets() {
     if (state.maxUse > 0 && t > state.maxUse) return false;
     
     if (!nameMatches(r.imie)) return false;
+    
+    if (state.fav && !favorites.has(r.imie.toLowerCase())) return false;
     
     if (!skipOrigin) {
       if (state.origin === "all") {
@@ -166,4 +160,25 @@ function updateFacets() {
   originSelect.innerHTML = h;
   if (originSelect.querySelector('option[value="' + pv + '"]')) originSelect.value = pv;
   else { state.origin = "all"; originSelect.value = "all"; }
+  
+  // ── Renderowanie Micro-Charts dla top 5 grup pochodzenia ──
+  var chartsHtml = "";
+  var maxOriginCount = originKeys.length > 0 ? originCounts[originKeys[0]] : 0;
+  
+  originKeys.slice(0, 5).forEach(function(k) {
+    if (k === "__none__") return; // Pomijamy "nieokreślone" w mikro-wykresach
+    var count = originCounts[k];
+    var pct = Math.round((count / maxOriginCount) * 100);
+    var label = getOriginLabel(k);
+    if (label.length > 18) label = label.slice(0, 16) + "…";
+    
+    chartsHtml += '<div style="margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); cursor: pointer;" title="' + getOriginLabel(k) + ' (' + formatNumber(count) + ')" onclick="document.getElementById(\'origin\').value=\'' + k + '\'; document.getElementById(\'origin\').dispatchEvent(new Event(\'change\'));">' +
+      '<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px;">' + label + '</span>' +
+      '<div style="flex-grow: 1; margin-left: 8px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden;">' +
+        '<div style="width: ' + pct + '%; background: var(--faint); height: 100%; border-radius: 2px;"></div>' +
+      '</div>' +
+    '</div>';
+  });
+  
+  originCharts.innerHTML = chartsHtml;
 }

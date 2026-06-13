@@ -22,8 +22,31 @@ var state = {
   q: "",                   // fraza wyszukiwania
   sort: "wystapienia_pierwsze", // kolumna sortowania
   dir: -1,                 // kierunek sortowania (-1 malejąco, 1 rosnąco)
-  regex: false             // czy wyszukiwać za pomocą wyrażeń regularnych (regex)
+  regex: false,            // czy wyszukiwać za pomocą wyrażeń regularnych (regex)
+  fav: false               // czy pokazywać tylko ulubione
 };
+
+// Zbiór ulubionych imion (przechowywany w localStorage)
+var favorites = new Set();
+try {
+  var storedFavs = JSON.parse(localStorage.getItem("nazwozbior-favs") || "[]");
+  storedFavs.forEach(function(f) { favorites.add(f); });
+} catch (e) {
+  console.error("Błąd odczytu ulubionych z localStorage", e);
+}
+
+// Przełącza status ulubionego dla danego imienia
+function toggleFavorite(name) {
+  var lower = name.toLowerCase();
+  if (favorites.has(lower)) {
+    favorites.delete(lower);
+  } else {
+    favorites.add(lower);
+  }
+  try {
+    localStorage.setItem("nazwozbior-favs", JSON.stringify(Array.from(favorites)));
+  } catch (e) {}
+}
 
 // Odczyt stanu z parametrów URL (Query String)
 function loadState() {
@@ -58,6 +81,7 @@ function loadState() {
     if (d === 1 || d === -1) state.dir = d;
   }
   if (p.has("regex")) state.regex = p.get("regex") === "1";
+  if (p.has("fav")) state.fav = p.get("fav") === "1";
 }
 
 // Zapis aktualnego stanu filtrów do URL (Query String) bez przeładowania strony
@@ -73,6 +97,7 @@ function saveState() {
   if (state.sort !== "wystapienia_pierwsze") p.set("sort", state.sort);
   if (state.dir !== -1) p.set("dir", state.dir);
   if (state.regex) p.set("regex", "1");
+  if (state.fav) p.set("fav", "1");
   
   var qs = p.toString();
   history.replaceState(state, "", qs ? "?" + qs : location.pathname);

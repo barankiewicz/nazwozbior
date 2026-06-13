@@ -128,6 +128,8 @@ function getFiltered() {
       return false;
     }
     
+    if (state.fav && !favorites.has(r.imie.toLowerCase())) return false;
+    
     if (!nameMatches(r.imie)) return false;
     return true;
   });

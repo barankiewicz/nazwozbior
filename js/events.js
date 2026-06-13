@@ -9,7 +9,6 @@ document.getElementById("seg-gender").addEventListener("click", function (e) {
   [].forEach.call(this.querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", "false"); });
   b.setAttribute("aria-pressed", "true");
   state.g = b.getAttribute("data-g");
-  showAll = false; currentPage = 0; randomOffset = 0;
   updateHeader();
   render();
 });
@@ -21,7 +20,6 @@ function syncLength() {
     if (this === lengthMin) { mx = mn; lengthMax.value = mx; } else { mn = mx; lengthMin.value = mn; }
   }
   state.min = mn; state.max = mx;
-  showAll = false; currentPage = 0; randomOffset = 0;
   lengthValue.textContent = (mn === mx ? mn + " liter" : mn + "–" + mx + " liter");
   render();
 }
@@ -32,7 +30,6 @@ lengthMax.addEventListener("input", syncLength);
 function syncUsageCount() {
   var mn = usageMin.value ? +usageMin.value : 0, mx = usageMax.value ? +usageMax.value : 0;
   state.minUse = mn; state.maxUse = mx;
-  showAll = false; currentPage = 0; randomOffset = 0;
   usageValue.textContent = mn && mx ? mn + "–" + formatNumber(mx) : mn ? "od " + formatNumber(mn) : mx ? "do " + formatNumber(mx) : "dowolnie";
   render();
 }
@@ -44,7 +41,6 @@ usageMax.addEventListener("input", syncUsageCount);
 // Zdarzenia zmiany pochodzenia
 originSelect.addEventListener("change", function () {
   state.origin = this.value;
-  showAll = false; currentPage = 0; randomOffset = 0;
   render();
 });
 
@@ -54,7 +50,6 @@ searchInput.addEventListener("input", function () {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(function () {
     state.q = searchInput.value;
-    showAll = false; currentPage = 0; randomOffset = 0;
     render();
   }, 140);
 });
@@ -64,7 +59,13 @@ regexToggle.addEventListener("click", function () {
   state.regex = !state.regex;
   regexToggle.setAttribute("aria-pressed", state.regex ? "true" : "false");
   searchInput.placeholder = state.regex ? "np. ^A, a$, [aeiou]{2}…" : "np. Ala, Zof, mar…";
-  showAll = false; currentPage = 0; randomOffset = 0;
+  render();
+});
+
+// Przełącznik ulubionych
+favToggle.addEventListener("click", function () {
+  state.fav = !state.fav;
+  favToggle.setAttribute("aria-pressed", state.fav ? "true" : "false");
   render();
 });
 
@@ -107,6 +108,16 @@ headerRow.addEventListener("click", function (e) {
 tableBody.addEventListener("click", function (e) {
   var x = e.target.closest("a.xref");
   if (x) { e.preventDefault(); goToName(x.getAttribute("data-imie")); return; }
+  
+  var favBtn = e.target.closest(".fav-btn");
+  if (favBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    var nm = favBtn.getAttribute("data-fav-imie");
+    toggleFavorite(nm);
+    render();
+    return;
+  }
   
   var tr = e.target.closest("tr.main"); if (!tr) return;
   var i = tr.getAttribute("data-i");
@@ -223,17 +234,19 @@ tableBody.addEventListener("mouseout", function (e) {
 });
 
 // Zdarzenia układu paginacji i losowania imienia
-prevButton.addEventListener("click", function () { if (currentPage > 0) { currentPage--; render(); } });
-nextButton.addEventListener("click", function () { if (currentPage < Math.ceil((getSorted(getFiltered()).length - randomOffset) / PER_PAGE) - 1) { currentPage++; render(); } });
-viewAllButton.addEventListener("click", function () { if (showAll) { showAll = false; currentPage = 0; randomOffset = 0; } else { showAll = true; } render(); });
 randomButton.addEventListener("click", function () {
   var all = getSorted(getFiltered());
   if (!all.length) return;
-  showAll = false; currentPage = 0;
-  randomOffset = Math.floor(Math.random() * all.length);
-  render();
+  var randomIndex = Math.floor(Math.random() * all.length);
+  // Jeśli wylosowany indeks jest poza załadowanym limitem, zwiększ limit
+  if (randomIndex >= currentLimit) {
+    currentLimit = randomIndex + 10;
+    render(true);
+  }
+  
   setTimeout(function () {
-    var tr = tableBody.querySelector('tr.main');
+    var rows = tableBody.querySelectorAll('tr.main');
+    var tr = rows[randomIndex];
     if (tr) { tr.scrollIntoView({ behavior: "smooth", block: "center" }); tr.click(); }
   }, 40);
 });
@@ -241,6 +254,20 @@ randomButton.addEventListener("click", function () {
 // Nawigacja "Do góry"
 addEventListener("scroll", function () { backToTopButton.style.display = scrollY > 500 ? "block" : "none"; });
 backToTopButton.addEventListener("click", function () { scrollTo({ top: 0, behavior: "smooth" }); });
+
+// ── Inicjalizacja Infinite Scroll ──
+if ('IntersectionObserver' in window) {
+  var observer = new IntersectionObserver(function(entries) {
+    if (entries[0].isIntersecting) {
+      var allLength = getFiltered().length;
+      if (currentLimit < allLength) {
+        currentLimit += PER_PAGE;
+        render(true); // renderuj z nowym limitem
+      }
+    }
+  }, { rootMargin: "200px" });
+  observer.observe(loadingTrigger);
+}
 
 // ── Inicjalizacja Aplikacji ──
 (function init() {
@@ -262,6 +289,7 @@ backToTopButton.addEventListener("click", function () { scrollTo({ top: 0, behav
 
   if (state.q) searchInput.value = state.q;
   if (state.regex) { regexToggle.setAttribute("aria-pressed", "true"); searchInput.placeholder = "np. ^A, a$, [aeiou]{2}…"; }
+  if (state.fav) { favToggle.setAttribute("aria-pressed", "true"); }
 
   updateHeader();
   render();

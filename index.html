@@ -84,12 +84,14 @@
         <div class="ctl">
           <label for="origin">pochodzenie</label>
           <select id="origin"><option value="all">dowolne</option></select>
+          <div id="origin-charts" style="margin-top: 8px; font-size: 11.5px; width: 180px;"></div>
         </div>
         <div class="ctl regex-ctl">
           <label for="search">szukaj</label>
           <div class="regex-wrap">
             <input type="text" id="search" placeholder="np. Ala, Zof, mar…" autocomplete="off">
             <button type="button" class="regex-toggle" id="regex-toggle" aria-pressed="false" data-tip="Włącz wyszukiwanie regex">.*</button>
+            <button type="button" class="regex-toggle" id="fav-toggle" aria-pressed="false" data-tip="Pokaż tylko ulubione">★</button>
             <button type="button" class="regex-help-btn" id="regex-help-btn" aria-label="Pomoc regex" data-tip="Pomoc regex">?</button>
           </div>
           <div class="regex-err" id="regex-err" aria-live="polite"></div>
@@ -130,12 +132,7 @@
         </thead>
         <tbody id="rows"></tbody>
       </table>
-      <div id="page-wrap">
-        <button type="button" class="btn-ghost" id="prev-page" style="display:none">← poprzednia</button>
-        <span id="page-info" style="font-size:13px;color:var(--faint)"></span>
-        <button type="button" class="btn-ghost" id="next-page" style="display:none">następna →</button>
-        <button type="button" class="btn-ghost" id="view-all">pokaż wszystkie</button>
-      </div>
+      <div id="loading-trigger" style="height: 40px; margin: 20px 0;"></div>
     </main>
 
     <button type="button" class="btn-ghost" id="back-top" aria-label="Wróć na górę">↑ do góry</button>

@@ -30,6 +30,9 @@ var PER_PAGE = 250;
 // Tekst zastępczy wyświetlany, gdy dane imię nie posiada opisu znaczenia
 var DESCRIPTION_MISSING = '<span style="color:var(--faint)">Źródła nie podają znaczenia tego imienia.</span>';
 
+// Piktogram ładowania opisu (Skeleton Loader)
+var DESCRIPTION_LOADING = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+
 // Nagłówki tabeli dla podziału binarnego (męskie / żeńskie)
 var HEADER_BINARY = '<th tabindex="0" data-key="imie">imię <span class="arr">▲</span></th>' +
   '<th tabindex="0" data-key="dlugosc" class="num hide">długość <span class="arr">▲</span></th>' +
@@ -57,6 +60,7 @@ var tableBody = document.getElementById("rows");
 var countElement = document.getElementById("count");
 var headerRow = document.getElementById("head");
 var originSelect = document.getElementById("origin");
+var originCharts = document.getElementById("origin-charts");
 var lengthMin = document.getElementById("len-min");
 var lengthMax = document.getElementById("len-max");
 var lengthValue = document.getElementById("len-val");
@@ -65,12 +69,10 @@ var usageMax = document.getElementById("use-max");
 var usageValue = document.getElementById("use-val");
 var searchInput = document.getElementById("search");
 var regexToggle = document.getElementById("regex-toggle");
+var favToggle = document.getElementById("fav-toggle");
 var regexHelp = document.getElementById("regex-help");
 var regexHelpButton = document.getElementById("regex-help-btn");
 var regexError = document.getElementById("regex-err");
 var randomButton = document.getElementById("random-btn");
-var prevButton = document.getElementById("prev-page");
-var nextButton = document.getElementById("next-page");
-var pageInfo = document.getElementById("page-info");
-var viewAllButton = document.getElementById("view-all");
+var loadingTrigger = document.getElementById("loading-trigger");
 var backToTopButton = document.getElementById("back-top");

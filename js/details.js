@@ -180,6 +180,42 @@ function renderGenderRatioBar(femaleCount, maleCount) {
   '</div>';
 }
 
+// Pomocnicza funkcja licząca przybliżoną liczbę sylab (samogłosek) w polskim słowie
+function countSyllables(word) {
+  var matches = word.toLowerCase().match(/[aąeęioóuy]/g);
+  return matches ? matches.length : 1;
+}
+
+// Generuje propozycje drugich imion na podstawie rytmu (liczby sylab) i popularności
+function suggestSecondNames(baseName, gender, origin) {
+  var baseSyllables = countSyllables(baseName);
+  var targetSyllables = baseSyllables === 2 ? 3 : (baseSyllables === 3 ? 2 : (baseSyllables === 1 ? 3 : 2));
+  
+  var pool = gender === "m" ? maleNames : femaleNames;
+  
+  var candidates = pool.filter(function(r) {
+    if (r.imie === baseName) return false;
+    var syl = countSyllables(r.imie);
+    // Szukamy imion o docelowej liczbie sylab, preferujemy popularne drugie imiona
+    return syl === targetSyllables && (r.wystapienia_drugie > 500);
+  });
+  
+  // Jeśli mamy pochodzenie, spróbujmy dopasować z tego samego
+  var originMatches = candidates.filter(function(r) { return r.pochodzenie === origin; });
+  if (originMatches.length > 5) {
+    candidates = originMatches;
+  }
+  
+  candidates.sort(function(a, b) { return b.wystapienia_drugie - a.wystapienia_drugie; });
+  
+  var suggestions = candidates.slice(0, 5).map(function(r) { return r.imie; });
+  
+  if (suggestions.length === 0) return "";
+  
+  return '<p class="xrefs" style="margin-top: 8px;">propozycje drugiego imienia (rytm): ' + 
+    suggestions.map(xrefLink).join(', ') + '</p>';
+}
+
 // Renderuje panel szczegółów dla imion unisex wprost z rejestru PESEL
 function renderUnisexPeselDetail(r) {
   var src = r._src || {};
@@ -192,10 +228,11 @@ function renderUnisexPeselDetail(r) {
     renderGenderRatioBar(femaleTotal, maleTotal) +
     trendSparkline(src.trend) +
     baseRelationLinks(src) +
+    (state.g === 'm' || state.g === 'z' ? suggestSecondNames(r.imie, state.g, src.pochodzenie) : '') +
     ("opis_html" in src
       ? ('<div class="opis">' + (src.opis_html || DESCRIPTION_MISSING) + '</div>' +
         (src.opis_html ? '<p class="src">' + getDescriptionSourceLink(r.imie) + '</p>' : ''))
-      : ('<div class="opis" data-opis-imie="' + escapeHtml(r.imie) + '"><span style="color:var(--faint)">wczytuję znaczenie…</span></div>' +
+      : ('<div class="opis" data-opis-imie="' + escapeHtml(r.imie) + '">' + DESCRIPTION_LOADING + '</div>' +
         '<p class="src" data-src-imie="' + escapeHtml(r.imie) + '" style="display:none"></p>'));
 }
 

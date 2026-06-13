@@ -118,12 +118,23 @@ thead th[data-active="1"]{color:var(--magenta)} thead th[data-active="1"] .arr{o
 tbody tr.main{border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s}
 tbody tr.main:hover{background:var(--row-hover)}
 tbody td{padding:13px 14px;font-size:15px;vertical-align:middle}
-td.name{font-family:var(--display);font-weight:600;font-size:17px}
+td.name{font-family:var(--display);font-weight:600;font-size:17px;display:flex;align-items:center;gap:8px}
+.fav-btn{background:transparent;border:0;color:var(--faint);cursor:pointer;padding:0 4px;font-size:18px;line-height:1;transition:.16s}
+.fav-btn:hover{color:var(--accent);transform:scale(1.15)}
+.fav-btn.active{color:var(--accent)}
 td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
 .tag{display:inline-block;font-size:12.5px;font-weight:700;padding:3px 12px;border-radius:999px}
 tr.detail td{padding:0 14px;background:var(--surface-2)}
-.detail-inner{max-height:0;overflow:hidden;transition:max-height .28s ease}
-tr.detail.open .detail-inner{max-height:1200px}
+.detail-inner{display:grid;grid-template-rows:0fr;transition:grid-template-rows .28s ease-out}
+.detail-inner > div{overflow:hidden;min-height:0}
+tr.detail.open .detail-inner{grid-template-rows:1fr}
+
+/* ── Skeleton Loadery ── */
+.skeleton{height:20px;margin-bottom:8px;border-radius:4px;
+  background:linear-gradient(90deg,var(--line-strong) 25%,var(--line) 50%,var(--line-strong) 75%);
+  background-size:400% 100%;animation:shimmer 1.4s ease-in-out infinite}
+.skeleton:last-child{width:60%;margin-bottom:0}
+@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
 
 /* ── Panel szczegółów ── */
 .nb-info{display:grid;grid-template-columns:max-content 1fr;gap:7px 20px;margin:0 0 12px;font-size:14.5px}
