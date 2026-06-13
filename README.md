@@ -34,7 +34,7 @@ Zero backendu. Wszystko po stronie klienta. Jeden plik HTML i jeden wygenerowany
 dane.gov.pl (PESEL, XLSX)        zaimki.pl (API)
         │                              │
         ▼                              ▼
-┌─────────────── zbuduj_dataset.py ──────────────────┐
+┌──────────── builder/zbuduj_dataset.py ──────────────┐
 │ 1. pobierz XLSX z PESEL-u                           │
 │ 2. zbuduj dataset męski i żeński                    │
 │ 3. wzbogać kaskadowo: PL Wiki → Wikidane → EN Wiki │
@@ -76,21 +76,21 @@ Każde imię może mieć `bazowe` (od kogo pochodzi) i `pochodne` (co od niego p
 - **Service worker** (`sw.js` v4): network-first z cache fallbackiem — offline działa, a po wdrożeniu nikt nie utknie na starej wersji.
 - **CSP**: zablokowane wszystko poza tym co potrzebne — `default-src 'self'`, `style-src` z Google Fonts, `connect-src` tylko GoatCounter.
 - **Czcionki**: Baloo 2 (nagłówek, nazwy imion) + Atkinson Hyperlegible (tekst, dane).
-- **Backend**: Python 3.13 — `zbuduj_dataset.py`. Paczki: `requests`, `openpyxl`. Bez serwera — output to statyczne pliki.
+- **Backend**: Python 3.13 — `builder/zbuduj_dataset.py`. Paczki: `requests`, `openpyxl`. Bez serwera — output to statyczne pliki.
 - **CI/CD**: GitHub Actions (`.github/workflows/build.yml`). Na push do main i raz w miesiącu z crona: buduje dane, deploy na GitHub Pages + opcjonalnie FTP.
 - **Hosting**: statyczne pliki, serwowane z dowolnego HTTP servera.
 
 ## Audyt jakości
 
-`python3 audyt_dataset.py` sprawdza każdy build pod kątem reguł: opisy-statystyki (R1), opisy-imieniny (R2), artykuł nie o imieniu (R3), podejrzanie krótki opis (R4), opis bez wzmianki o imieniu (R5). Raport z przykładami ląduje w `AUDYT.md`.
+`python3 builder/audyt_dataset.py` sprawdza każdy build pod kątem reguł: opisy-statystyki (R1), opisy-imieniny (R2), artykuł nie o imieniu (R3), podejrzanie krótki opis (R4), opis bez wzmianki o imieniu (R5). Raport z przykładami ląduje w `AUDYT.md`.
 
 ## Szybki start lokalnie
 
 ```bash
 pip install requests openpyxl
-python3 zbuduj_dataset.py --limit 300   # szybki test (~imiona z top 300)
-python3 zbuduj_dataset.py               # pełny bieg (długo, ~godzinę)
-python3 zbuduj_dataset.py --incremental # tylko uzupełnienie braków
+python3 builder/zbuduj_dataset.py --limit 300   # szybki test (~imiona z top 300)
+python3 builder/zbuduj_dataset.py               # pełny bieg (długo, ~godzinę)
+python3 builder/zbuduj_dataset.py --incremental # tylko uzupełnienie braków
 python3 -m http.server 8080             # i lecisz na localhost:8080
 ```
 
@@ -105,16 +105,19 @@ Flagi: `--limit N`, `--incremental`, `--skip-pl`, `--skip-en`, `--skip-wd`, `--s
 ├── opisy/*.js              # shardy opisów (leniwe ładowanie)
 ├── dataset_*.json          # pełne datasety (JSON)
 ├── dataset_*.csv           # pełne datasety (CSV, do własnych analiz)
-├── zbuduj_dataset.py       # skrypt budujący wszystko
-├── audyt_dataset.py        # audyt jakości po buildzie
+├── builder/                # skrypty budujące dane
+│   ├── zbuduj_dataset.py   # główny skrypt budujący
+│   ├── audyt_dataset.py    # audyt jakości po buildzie
+│   ├── wzbogac_opisy.py    # dodatkowe wzbogacanie opisów
+│   ├── wzbogac_nowe_wiki.py
+│   ├── DOKUMENTACJA.md     # pełna dokumentacja techniczna
+│   └── AUDYT.md            # raport z ostatniego audytu
 ├── sw.js                   # service worker
 ├── count.js                # GoatCounter (self-hosted)
 ├── kontakt.html            # strona kontaktowa
 ├── .cache_wiki/            # cache zapytań do Wikipedii/Wikidanych
 ├── raw_pesel/              # pobrane XLSX z dane.gov.pl
-├── .github/workflows/      # CI/CD
-├── DOKUMENTACJA.md         # pełna dokumentacja techniczna
-└── AUDYT.md                # raport z ostatniego audytu
+└── .github/workflows/      # CI/CD
 ```
 
 ## Źródła i podziękowania

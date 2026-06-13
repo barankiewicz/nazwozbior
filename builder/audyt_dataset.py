@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 """
 audyt_dataset.py — kontrola jakości zbudowanego datasetu.
 

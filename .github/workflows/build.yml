@@ -28,12 +28,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache_wiki
-          key: wiki-${{ hashFiles('zbuduj_dataset.py') }}
+          key: wiki-${{ hashFiles('builder/zbuduj_dataset.py') }}
           restore-keys: wiki-
       - name: Instaluj zależności
         run: pip install requests openpyxl
       - name: Generuj dane
-        run: python3 zbuduj_dataset.py
+        run: python3 builder/zbuduj_dataset.py
       - name: Skopiuj pliki publiczne do _site/
         # Tylko to leci na produkcję — bez .py, .md, raw_pesel, .cache_wiki itd.
         run: |

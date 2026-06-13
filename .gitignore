@@ -10,3 +10,7 @@ INSTRUCTIONS.md
 .opencode/
 .agents/
 .cache_wiki/
+builder/.cache_wiki/
+*.log
+light_test_tmp.html
+skills-lock.json
