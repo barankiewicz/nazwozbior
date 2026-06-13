@@ -1,4 +1,8 @@
+![flag](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMjAiPjxyZWN0IHk9IjAiIHdpZHRoPSI0MDAiIGhlaWdodD0iNCIgZmlsbD0iIzVCQ0VGQSIvPjxyZWN0IHk9IjQiIHdpZHRoPSI0MDAiIGhlaWdodD0iNCIgZmlsbD0iI0Y1QTlCOCIvPjxyZWN0IHk9IjgiIHdpZHRoPSI0MDAiIGhlaWdodD0iNCIgZmlsbD0iI0ZGRkZGRiIvPjxyZWN0IHk9IjEyIiB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQiIGZpbGw9IiNGNUE5QjgiLz48cmVjdCB5PSIxNiIgd2lkdGg9IjQwMCIgaGVpZ2h0PSI0IiBmaWxsPSIjNUJDRUZBIi8+PC9zdmc+)
+
 # Nazwozbiór
+
+> **[nazwozbior.pl](https://nazwozbior.pl)** — strona działa i jest dostępna online.
 
 Przeglądarka imion z rejestru PESEL i niebinarnych z [zaimki.pl](https://zaimki.pl/imiona). Znajdź imię, które jest Twoje.
 
