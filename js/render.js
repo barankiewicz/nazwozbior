@@ -2,13 +2,15 @@
 
 "use strict";
 
-// Zmienna do obsługi infinite scroll
+// Zmienne do obsługi infinite scroll
 var currentLimit = PER_PAGE;
+var currentFilteredLength = 0;
 
 // Odpowiada za wyświetlenie przefiltrowanych, posortowanych i spaginowanych rekordów w tabeli DOM
 function render(append) {
-  var all = getSorted(getFiltered());
+  var all = getSortedFiltered();
   var total = all.length;
+  currentFilteredLength = total;
   
   if (!append) {
     currentLimit = PER_PAGE;

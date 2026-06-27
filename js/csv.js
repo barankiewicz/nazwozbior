@@ -4,7 +4,7 @@
 
 // Generowanie pliku CSV dla aktualnie widocznych wyników wyszukiwania i filtrów
 document.getElementById("csv-btn").addEventListener("click", function () {
-  var all = getSorted(getFiltered());
+  var all = getSortedFiltered();
   if (!all.length) return;
   
   var shown = showAll ? all : all.slice(currentPage * PER_PAGE, currentPage * PER_PAGE + PER_PAGE);

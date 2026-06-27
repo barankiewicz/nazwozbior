@@ -75,6 +75,51 @@ function getMatchFilter() {
   };
 }
 
+// Caches sorted versions of base pools to eliminate runtime sorting overhead
+var sortedPoolCache = {};
+function getSortedBasePool(gender, sortKey, dir) {
+  var cacheKey = gender + "_" + sortKey + "_" + dir;
+  if (!sortedPoolCache[cacheKey]) {
+    var pool = (gender === "m" ? maleNames :
+                gender === "z" ? femaleNames :
+                gender === "uni" ? unisexNames :
+                gender === "nb" ? nonbinaryPool : allNames);
+    
+    var d = dir;
+    var sortProp = "_sort_" + sortKey;
+    sortedPoolCache[cacheKey] = pool.slice().sort(function (a, b) {
+      var x = a[sortProp];
+      var y = b[sortProp];
+      if (x < y) return -1 * d;
+      if (x > y) return 1 * d;
+      // Tie-breaker: alfabetycznie po nazwie (zawsze rosnąco)
+      var nameA = a._sort_imie;
+      var nameB = b._sort_imie;
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
+  }
+  return sortedPoolCache[cacheKey];
+}
+
+// Zwraca posortowaną i przefiltrowaną listę imion zgodnie z aktualnym stanem
+function getSortedFiltered() {
+  var q = state.q.trim();
+  if (state.regex && q) {
+    var b = buildRegex(q);
+    regexError.textContent = b.err || "";
+  } else {
+    regexError.textContent = "";
+  }
+  
+  var filterFn = getMatchFilter();
+  var sortedBase = getSortedBasePool(state.g, state.sort, state.dir);
+  return sortedBase.filter(function (r) {
+    return filterFn(r, false);
+  });
+}
+
 // Zwraca przefiltrowaną listę imion zgodnie z bieżącym stanem filtrów
 function getFiltered() {
   var q = state.q.trim();

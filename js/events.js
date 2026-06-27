@@ -256,7 +256,7 @@ tableBody.addEventListener("mouseout", function (e) {
 
 // Zdarzenia układu paginacji i losowania imienia
 randomButton.addEventListener("click", function () {
-  var all = getSorted(getFiltered());
+  var all = getSortedFiltered();
   if (!all.length) return;
   var randomIndex = Math.floor(Math.random() * all.length);
   // Jeśli wylosowany indeks jest poza załadowanym limitem, zwiększ limit
@@ -291,7 +291,7 @@ if (helpCardToggle && helpCardContent) {
 if ('IntersectionObserver' in window) {
   var observer = new IntersectionObserver(function(entries) {
     if (entries[0].isIntersecting) {
-      var allLength = getFiltered().length;
+      var allLength = currentFilteredLength;
       if (currentLimit < allLength) {
         currentLimit += PER_PAGE;
         render(true); // renderuj z nowym limitem
