@@ -25,7 +25,7 @@ var ORIGIN_LABELS = {
 };
 
 // Stała określająca domyślną liczbę wierszy na jedną stronę paginacji
-var PER_PAGE = 100;
+var PER_PAGE = 50;
 
 // Tekst zastępczy wyświetlany, gdy dane imię nie posiada opisu znaczenia
 var DESCRIPTION_MISSING = '<span style="color:var(--faint)">Źródła nie podają znaczenia tego imienia.</span>';
