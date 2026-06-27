@@ -136,7 +136,7 @@ function getFiltered() {
   });
 }
 
-// Zwraca posortowaną listę wyników według klucza i kierunku w stanie (bez dynamicznych lookupów)
+// Zmienia posortowaną listę wyników według klucza i kierunku w stanie (bez dynamicznych lookupów)
 function getSorted(arr) {
   var k = state.sort;
   var d = state.dir;
@@ -155,3 +155,41 @@ function getSorted(arr) {
   });
 }
 
+// Rozpocznij asynchroniczne, nieblokujące pre-sortowanie bazowych pul w tle, aby rozgrzać cache
+(function initPreSort() {
+  function preSortPools() {
+    var pools = ["z", "m", "all", "uni", "nb"];
+    var keys = ["wystapienia_pierwsze", "rejz", "imie", "wystapienia_razem"];
+    var dirs = [-1, 1];
+    var tasks = [];
+    
+    pools.forEach(function (g) {
+      keys.forEach(function (k) {
+        dirs.forEach(function (d) {
+          tasks.push({ g: g, k: k, d: d });
+        });
+      });
+    });
+    
+    function runNext() {
+      if (tasks.length === 0) return;
+      var t = tasks.shift();
+      var isValid = true;
+      if ((t.g === "nb" || t.g === "uni") && (t.k === "wystapienia_pierwsze")) isValid = false;
+      if ((t.g !== "nb" && t.g !== "uni") && (t.k === "rejz")) isValid = false;
+      
+      if (isValid) {
+        getSortedBasePool(t.g, t.k, t.d);
+      }
+      setTimeout(runNext, 30); // 30ms przerwy pomiędzy sortowaniami, aby nie obciążać procesora
+    }
+    
+    runNext();
+  }
+  
+  if (window.requestIdleCallback) {
+    requestIdleCallback(preSortPools);
+  } else {
+    setTimeout(preSortPools, 1000);
+  }
+})();
