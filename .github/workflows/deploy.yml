@@ -19,8 +19,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Skopiuj pliki publiczne do _site/
         run: |
-          mkdir -p _site/opisy
+          mkdir -p _site/opisy _site/css _site/js
           cp index.html dostepnosc.html kontakt.html sw.js dane.js count.js _site/
+          cp -r css/* _site/css/
+          cp -r js/* _site/js/
           cp opisy/*.js _site/opisy/
           cp dataset_*.csv dataset_*.json _site/ 2>/dev/null || true
       - name: Wyślij przez FTP (lh.pl)

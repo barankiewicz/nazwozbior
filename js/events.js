@@ -13,6 +13,15 @@ document.getElementById("seg-gender").addEventListener("click", function (e) {
   render();
 });
 
+// Renderowanie z opóźnieniem (debounce) do unikania zacięć podczas interakcji (np. przeciąganie suwaków)
+var renderTimer;
+function renderDebounced(ms) {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(function () {
+    render();
+  }, ms || 100);
+}
+
 // Zdarzenia synchronizujące suwaki długości imienia
 function syncLength() {
   var mn = +lengthMin.value, mx = +lengthMax.value;
@@ -21,7 +30,7 @@ function syncLength() {
   }
   state.min = mn; state.max = mx;
   lengthValue.textContent = (mn === mx ? mn + " liter" : mn + "–" + mx + " liter");
-  render();
+  renderDebounced(120);
 }
 lengthMin.addEventListener("input", syncLength);
 lengthMax.addEventListener("input", syncLength);
@@ -31,7 +40,7 @@ function syncUsageCount() {
   var mn = usageMin.value ? +usageMin.value : 0, mx = usageMax.value ? +usageMax.value : 0;
   state.minUse = mn; state.maxUse = mx;
   usageValue.textContent = mn && mx ? mn + "–" + formatNumber(mx) : mn ? "od " + formatNumber(mn) : mx ? "do " + formatNumber(mx) : "dowolnie";
-  render();
+  renderDebounced(150);
 }
 usageMin.addEventListener("change", syncUsageCount);
 usageMin.addEventListener("input", syncUsageCount);

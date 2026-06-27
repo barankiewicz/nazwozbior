@@ -42,23 +42,58 @@ function getNbOriginLabel(r) {
 
 // Obliczenie łącznej liczby wystąpień imienia w PESEL (jako pierwsze i drugie)
 function totalCount(r) {
-  return r._g === "nb" || r._g === "uni"
-    ? (r._rzp + r._rzd + r._rmp + r._rmd)
-    : ((r.wystapienia_pierwsze || 0) + (r.wystapienia_drugie || 0));
+  return r._sort_wystapienia_razem || 0;
+}
+
+// Zoptymalizowane cache'owanie klasy CSS pochodzenia
+function getOriginClassCached(r) {
+  if (r._originClass === undefined) {
+    r._originClass = getOriginClass(r.pochodzenie);
+  }
+  return r._originClass;
+}
+
+// Zoptymalizowane cache'owanie sformatowanych liczb
+function getFmtRejz(r) {
+  if (r._fmt_rejz === undefined) {
+    r._fmt_rejz = formatNumber(r._rzp + r._rzd);
+  }
+  return r._fmt_rejz;
+}
+
+function getFmtRejm(r) {
+  if (r._fmt_rejm === undefined) {
+    r._fmt_rejm = formatNumber(r._rmp + r._rmd);
+  }
+  return r._fmt_rejm;
+}
+
+function getFmtW1(r) {
+  if (r._fmt_w1 === undefined) {
+    r._fmt_w1 = formatNumber(r.wystapienia_pierwsze || 0);
+  }
+  return r._fmt_w1;
+}
+
+function getFmtW2(r) {
+  if (r._fmt_w2 === undefined) {
+    r._fmt_w2 = formatNumber(r.wystapienia_drugie || 0);
+  }
+  return r._fmt_w2;
+}
+
+function getFmtTotal(r) {
+  if (r._fmt_total === undefined) {
+    r._fmt_total = formatNumber(totalCount(r));
+  }
+  return r._fmt_total;
 }
 
 // Zwraca wartość danego rekordu dla wybranego klucza sortowania
 function getSortValue(r, key) {
-  if (key === "dlugosc") return r.imie.length;
-  if (key === "imie") return r.imie.toLowerCase();
-  if (key === "pochodzenie") return (r._g === "nb" || r._g === "uni") ? getNbOriginLabel(r) : getOriginLabel(r.pochodzenie);
+  var k = "_sort_" + key;
+  if (k in r) return r[k];
   if (key === "wystapienia_razem") return totalCount(r);
-  if (key === "rejz") return r._rzp + r._rzd;
-  if (key === "rejm") return r._rmp + r._rmd;
-  if (key === "ratio_nb") {
-    var z = r._rzp + r._rzd, m = r._rmp + r._rmd, t = z + m;
-    return t ? z / t : 0;
-  }
   return r[key] || 0;
 }
 

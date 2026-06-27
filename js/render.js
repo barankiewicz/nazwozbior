@@ -22,8 +22,8 @@ function render(append) {
   shown.forEach(function (r, i) {
     var nb = r._g === "nb", uni = r._g === "uni";
     var nx = nb || uni;
-    var c3 = nx ? formatNumber(r._rzp + r._rzd) : formatNumber(r.wystapienia_pierwsze);
-    var c4 = nx ? formatNumber(r._rmp + r._rmd) : formatNumber(r.wystapienia_drugie);
+    var c3 = nx ? getFmtRejz(r) : getFmtW1(r);
+    var c4 = nx ? getFmtRejm(r) : getFmtW2(r);
     var zTotal = r._rzp + r._rzd, mTotal = r._rmp + r._rmd, tCombined = zTotal + mTotal;
     var zPctR = tCombined ? Math.round(zTotal / tCombined * 100) : 0;
     var femalePct = zPctR;
@@ -38,30 +38,30 @@ function render(append) {
         '</div>' 
       : '';
     
-    var tagTxt = nb ? getNbOriginLabel(r) : getOriginLabel(r.pochodzenie);
+    var tagTxt = r._sort_pochodzenie;
     if (tagTxt.length > 26) tagTxt = tagTxt.slice(0, 24) + "…";
     
     var unisexBadge = r.unisex && r.unisex >= 0.1 ? ' <span class="unisex-badge" data-tip="Imię unisex (z PESEL): ' + Math.round(r.unisex * 100) + '% nadań to płeć rzadsza (≥10% w obu rejestrach)">⚥</span>' : '';
     
-    var isFav = favorites.has(r.imie.toLowerCase());
+    var isFav = favorites.has(r._sort_imie);
     var favIcon = isFav ? '★' : '☆';
     var favClass = isFav ? 'fav-btn active' : 'fav-btn';
     
     h += '<tr class="main" tabindex="0" data-i="' + i + '" data-imie="' + escapeHtml(r.imie) + '" aria-expanded="false">' +
          '<td class="name"><button type="button" class="' + favClass + '" aria-label="' + (isFav ? 'Usuń z ulubionych' : 'Dodaj do ulubionych') + '" data-fav-imie="' + escapeHtml(r.imie) + '">' + favIcon + '</button>' + escapeHtml(r.imie) + unisexBadge + '</td>' +
          '<td class="num hide">' + r.imie.length + '</td>' +
-         '<td><span class="tag ' + getOriginClass(r.pochodzenie) + '">' + escapeHtml(tagTxt) + '</span></td>' +
+         '<td><span class="tag ' + getOriginClassCached(r) + '">' + escapeHtml(tagTxt) + '</span></td>' +
          '<td class="num">' + c3 + '</td>' +
          '<td class="num hide">' + c4 + '</td>' +
          (nx ? '<td class="num" data-tip="Stosunek nadań żeńskich do męskich. Im bliżej 50/50, tym bardziej neutralne płciowo imię.">' + ratioStr + '</td>' : '<td class="num"></td>') +
-         '<td class="num hide">' + formatNumber(totalCount(r)) + '</td>' +
+         '<td class="num hide">' + getFmtTotal(r) + '</td>' +
          '<td style="text-align:right"><span class="chev">›</span></td></tr>' +
          '<tr class="detail" data-d="' + i + '"><td colspan="8"><div class="detail-inner" aria-hidden="true"><div><div class="detail-pad">' +
          
          (nb && !r._is_unisex_pesel ? renderNonbinaryDetail(r) :
           (nb && r._is_unisex_pesel) || uni ? renderUnisexPeselDetail(r) :
-          '<p class="freq">w PESEL: <b>' + formatNumber(r.wystapienia_pierwsze) + '</b> os. jako imię pierwsze, ' +
-          '<b>' + formatNumber(r.wystapienia_drugie) + '</b> jako drugie' +
+          '<p class="freq">w PESEL: <b>' + getFmtW1(r) + '</b> os. jako imię pierwsze, ' +
+          '<b>' + getFmtW2(r) + '</b> jako drugie' +
           (r.pochodzenie ? (' · pochodzenie <b>' + getOriginLabel(r.pochodzenie) + '</b>' + originSource(r)) : '') + '</p>' +
           trendSparkline(r.trend) +
           baseRelationLinks(r) +
@@ -84,43 +84,27 @@ function render(append) {
 
 // Aktualizuje przeliczone wartości na przyciskach podziału oraz dostępne pochodzenia
 function updateFacets() {
-  function match(r, skipOrigin) {
-    var L = r.imie.length;
-    if (L < state.min || L > state.max) return false;
-    
-    var t = totalCount(r);
-    if (state.minUse > 0 && t < state.minUse) return false;
-    if (state.maxUse > 0 && t > state.maxUse) return false;
-    
-    if (!nameMatches(r.imie)) return false;
-    
-    if (state.fav && !favorites.has(r.imie.toLowerCase())) return false;
-    
-    if (!skipOrigin) {
-      if (state.origin === "all") {
-        // brak
-      } else if (state.origin === "__none__") {
-        if (r.pochodzenie) return false;
-      } else if (r.pochodzenie !== state.origin) {
-        return false;
-      }
-    }
-    return true;
+  var filterFn = getMatchFilter();
+  
+  var maleCount = 0;
+  for (var i = 0; i < maleNames.length; i++) {
+    if (filterFn(maleNames[i], false)) maleCount++;
   }
   
-  var maleCount = maleNames.filter(function (r) { return match(r, false); }).length;
-  var femaleCount = femaleNames.filter(function (r) { return match(r, false); }).length;
-  var nbCount = nonbinaryNames.filter(function (r) { return match(r, false); }).length;
+  var femaleCount = 0;
+  for (var i = 0; i < femaleNames.length; i++) {
+    if (filterFn(femaleNames[i], false)) femaleCount++;
+  }
   
-  var uSeenBi = {}, uniCount = 0;
-  maleNames.concat(femaleNames).forEach(function (r) {
-    if (!r.unisex || r.unisex < 0.1) return;
-    var k = r.imie.toLowerCase();
-    if (!uSeenBi[k] && match(r, false)) {
-      uSeenBi[k] = true;
-      uniCount++;
-    }
-  });
+  var nbCount = 0;
+  for (var i = 0; i < nonbinaryPool.length; i++) {
+    if (filterFn(nonbinaryPool[i], false)) nbCount++;
+  }
+  
+  var uniCount = 0;
+  for (var i = 0; i < unisexNames.length; i++) {
+    if (filterFn(unisexNames[i], false)) uniCount++;
+  }
   
   var allCount = maleCount + femaleCount;
   
@@ -134,15 +118,17 @@ function updateFacets() {
   b[3].style.display = nonbinaryNames.length ? "" : "none";
 
   var originCounts = {}, originKeys = [];
-  getPool().forEach(function (r) {
-    if (!match(r, true)) return;
+  var pool = getPool();
+  for (var i = 0; i < pool.length; i++) {
+    var r = pool[i];
+    if (!filterFn(r, true)) continue;
     var o = r.pochodzenie || "__none__";
     if (!originCounts[o]) {
       originCounts[o] = 0;
       originKeys.push(o);
     }
     originCounts[o]++;
-  });
+  }
   
   originKeys.sort(function (a, b) {
     if (a === "__none__") return 1;
