@@ -259,16 +259,17 @@ randomButton.addEventListener("click", function () {
   var all = getSortedFiltered();
   if (!all.length) return;
   var randomIndex = Math.floor(Math.random() * all.length);
-  // Jeśli wylosowany indeks jest poza załadowanym limitem, zwiększ limit
-  if (randomIndex >= currentLimit) {
-    currentLimit = randomIndex + 10;
-    render(true);
-  }
+  randomHighlight = all[randomIndex];
+  
+  render(false, true);
   
   setTimeout(function () {
     var rows = tableBody.querySelectorAll('tr.main');
-    var tr = rows[randomIndex];
-    if (tr) { tr.scrollIntoView({ behavior: "smooth", block: "center" }); tr.click(); }
+    var tr = rows[0];
+    if (tr) {
+      tr.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (tr.getAttribute("aria-expanded") !== "true") tr.click();
+    }
   }, 40);
 });
 

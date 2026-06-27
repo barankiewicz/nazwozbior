@@ -1,4 +1,4 @@
-var C='nazwozbior-v12',U=[
+var C='nazwozbior-v13',U=[
   '/','/index.html','/dane.js',
   '/css/main.css', '/css/base.css',
   '/js/constants.js','/js/utils.js','/js/data.js','/js/state.js',

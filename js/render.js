@@ -6,9 +6,26 @@
 var currentLimit = PER_PAGE;
 var currentFilteredLength = 0;
 
+// Globalna referencja do wylosowanego imienia (do natychmiastowego wyświetlenia na górze)
+var randomHighlight = null;
+
 // Odpowiada za wyświetlenie przefiltrowanych, posortowanych i spaginowanych rekordów w tabeli DOM
-function render(append) {
+function render(append, isRandomClick) {
+  if (!isRandomClick) {
+    randomHighlight = null;
+  }
+  
   var all = getSortedFiltered();
+  
+  if (randomHighlight) {
+    // Usuń z oryginalnej pozycji, aby uniknąć duplikatów
+    all = all.filter(function (x) {
+      return x.imie.toLowerCase() !== randomHighlight.imie.toLowerCase();
+    });
+    // Wstaw na sam początek
+    all.unshift(randomHighlight);
+  }
+  
   var total = all.length;
   currentFilteredLength = total;
   
